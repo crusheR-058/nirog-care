@@ -45,7 +45,88 @@ export interface Doctor {
   clinicName: string;
   mfaEnabled: boolean;
   avatarTone?: string;
+  onboardingComplete: boolean;
+  country?: string;
 }
+
+/** Full onboarding/verification payload (stored as JSON on the Doctor row). */
+export interface OnboardingProfile {
+  // Identity
+  firstName: string;
+  middleName?: string;
+  lastName: string;
+  displayName: string;
+  gender: "male" | "female" | "other";
+  dateOfBirth?: string;
+  mobile: string;
+  altMobile?: string;
+  altMobile2?: string;
+  languages: string[];
+  profilePhotoPath?: string;
+
+  // Country + identity documents (country-aware)
+  country: string;
+  taxIdLabel?: string; // "PAN", "SSN", "NINO"…
+  taxId?: string;
+  taxIdDocPath?: string;
+  idProofType?: string; // "Aadhaar", "Passport", "Driver's license"…
+  idProofFrontPath?: string;
+  idProofBackPath?: string;
+
+  // Practice / location
+  clinicName: string;
+  clinicStreet?: string;
+  clinicAddress?: string;
+  clinicCity?: string;
+  clinicState?: string;
+  clinicPincode?: string;
+
+  // Qualifications
+  education: string; // "MBBS, MD, DM"
+  certificates: Partial<Record<CertKey, string>>; // storage paths
+  yearsExperience: number;
+  specialty: string;
+  awards?: string;
+
+  // Registration / license (country-aware)
+  councilLabel?: string; // "SMC/DMC/RCI/IDA/IAP", "GMC", "State Medical Board"…
+  registrationNo: string;
+  registrationDocPath?: string;
+
+  // Consultation
+  consultType: "online" | "physical" | "both";
+  weekdays: string[];
+  slots: { day: string; from: string; to: string }[];
+  currency: string;
+  onlineFee?: number;
+  physicalFee?: number;
+
+  // Payout (country-aware)
+  bankAccountName?: string;
+  bankName?: string;
+  bankBranch?: string;
+  bankAccountNumber?: string;
+  bankRoutingLabel?: string; // "IFSC", "SWIFT/BIC", "Routing"…
+  bankRouting?: string;
+  bankIban?: string;
+  cancelledChequePath?: string;
+
+  // Extras
+  secretaryName?: string;
+  secretaryNumber?: string;
+  membership?: string;
+  conditionsTreated?: string;
+  servicesOffered?: string;
+  researchLinks?: string;
+}
+
+export type CertKey =
+  | "undergraduate"
+  | "postgraduate"
+  | "diploma"
+  | "dnb"
+  | "superSpecialty"
+  | "fellowship";
 
 /** A patient profile — may be the account holder or a managed dependent. */
 export interface Patient {

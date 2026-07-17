@@ -83,6 +83,8 @@ export function createSupabaseDataSource(
       clinicName: d.clinicName,
       mfaEnabled: d.mfaEnabled,
       avatarTone: d.avatarTone ?? undefined,
+      onboardingComplete: d.onboardingComplete ?? false,
+      country: d.country ?? undefined,
     };
   }
 

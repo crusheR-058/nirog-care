@@ -49,3 +49,5 @@ next-env.d.ts
 # PDF tooling (not part of the web app)
 /.pdf_deps
 /.agents
+
+.vercel

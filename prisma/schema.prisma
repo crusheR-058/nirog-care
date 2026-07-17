@@ -81,6 +81,11 @@ model Doctor {
   clinicName     String
   mfaEnabled     Boolean       @default(true)
   avatarTone     String?
+  // Onboarding / verification (Apollo-style, country-aware). The full payload
+  // lives in `profile` JSON; a few fields are promoted to columns for the app.
+  onboardingComplete Boolean   @default(false)
+  country            String?
+  profile            Json?
   createdAt      DateTime      @default(now())
   queue          QueueEntry[]
   encounters     Encounter[]

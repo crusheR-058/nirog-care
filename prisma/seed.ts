@@ -84,6 +84,8 @@ async function main() {
       clinicName: DOCTOR.clinicName,
       mfaEnabled: DOCTOR.mfaEnabled,
       avatarTone: DOCTOR.avatarTone,
+      onboardingComplete: true,
+      country: "India",
     },
   });
 

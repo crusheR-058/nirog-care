@@ -21,6 +21,9 @@ export default async function PortalLayout({
   const ds = await getDataSource();
   const doctor = await ds.getDoctor();
 
+  // New clinicians must finish verification before they can see any patients.
+  if (!doctor.onboardingComplete) redirect("/onboarding");
+
   return (
     <div className="flex min-h-dvh bg-canvas">
       <Sidebar />

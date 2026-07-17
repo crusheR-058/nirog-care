@@ -24,6 +24,8 @@ export const DOCTOR: Doctor = {
   clinicName: "Nirog Rural Care Network",
   mfaEnabled: true,
   avatarTone: "blue",
+  onboardingComplete: true,
+  country: "India",
 };
 
 export const PATIENTS: Patient[] = [
