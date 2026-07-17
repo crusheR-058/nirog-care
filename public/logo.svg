@@ -1,0 +1,56 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Nirog">
+  <defs>
+    <linearGradient id="nirogGreen" x1="0" y1="0.05" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#9BD24B" />
+      <stop offset="0.55" stop-color="#5CB25A" />
+      <stop offset="1" stop-color="#2E8B57" />
+    </linearGradient>
+    <linearGradient id="nirogBlue" x1="0.4" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4FB6E8" />
+      <stop offset="0.6" stop-color="#2A8FCE" />
+      <stop offset="1" stop-color="#1A69A6" />
+    </linearGradient>
+    <linearGradient id="nirogFig" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#37A6E0" />
+      <stop offset="1" stop-color="#1E76B6" />
+    </linearGradient>
+    <clipPath id="nirogLeft"><rect x="0" y="0" width="256" height="512" /></clipPath>
+    <clipPath id="nirogRight"><rect x="256" y="0" width="256" height="512" /></clipPath>
+  </defs>
+
+  <!-- Heart ring: outer heart minus inner heart (even-odd), split green (left) / blue (right) -->
+  <g clip-path="url(#nirogLeft)">
+    <path fill-rule="evenodd" fill="url(#nirogGreen)"
+      d="M256,468 C256,468 40,322 40,182 C40,112 96,70 152,70 C198,70 232,101 256,151 C280,101 314,70 360,70 C416,70 472,112 472,182 C472,322 256,468 256,468 Z
+         M256,392 C256,392 112,290 112,192 C112,144 151,116 191,116 C223,116 244,140 256,172 C268,140 289,116 321,116 C361,116 400,144 400,192 C400,290 256,392 256,392 Z" />
+  </g>
+  <g clip-path="url(#nirogRight)">
+    <path fill-rule="evenodd" fill="url(#nirogBlue)"
+      d="M256,468 C256,468 40,322 40,182 C40,112 96,70 152,70 C198,70 232,101 256,151 C280,101 314,70 360,70 C416,70 472,112 472,182 C472,322 256,468 256,468 Z
+         M256,392 C256,392 112,290 112,192 C112,144 151,116 191,116 C223,116 244,140 256,172 C268,140 289,116 321,116 C361,116 400,144 400,192 C400,290 256,392 256,392 Z" />
+  </g>
+
+  <!-- leaf veins (left) -->
+  <g stroke="#EAF6D8" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.55">
+    <path d="M132,150 C122,196 122,240 140,286" />
+    <path d="M140,190 L118,206 M146,224 L124,242 M156,258 L136,276" />
+  </g>
+
+  <!-- central wellness figure -->
+  <g>
+    <circle cx="256" cy="196" r="27" fill="url(#nirogFig)" />
+    <g stroke="url(#nirogFig)" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M256,246 L256,320" />
+      <path d="M256,252 C238,236 216,214 202,196" />
+      <path d="M256,252 C274,236 296,214 310,196" />
+      <path d="M256,314 C247,338 236,354 224,368" />
+      <path d="M256,314 C265,338 276,354 288,368" />
+    </g>
+  </g>
+
+  <!-- ECG / pulse line to a node -->
+  <g fill="none" stroke="#155E90" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M296,300 L332,300 L346,262 L362,338 L376,300 L420,300" />
+  </g>
+  <circle cx="432" cy="300" r="13" fill="#155E90" />
+</svg>

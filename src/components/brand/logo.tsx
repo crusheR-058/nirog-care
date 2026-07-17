@@ -1,9 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Nirog mark: a calm diagnostic "+" inside a ring — the pitch's cover motif —
- * paired with the wordmark. The glyph reads as both a medical cross and a
- * pulse origin point.
+ * Nirog brand mark — the heart logo (green leaves + blue figure + pulse line).
+ * Rendered from /logo.svg so the same asset can be swapped for the exact raster.
  */
 export function LogoMark({
   className,
@@ -14,33 +13,18 @@ export function LogoMark({
 }) {
   return (
     <span
-      className={cn("relative inline-grid place-items-center", className)}
+      className={cn("relative inline-grid shrink-0 place-items-center", className)}
       style={{ width: size, height: size }}
       aria-hidden
     >
-      <svg
-        viewBox="0 0 32 32"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo.svg"
+        alt=""
         width={size}
         height={size}
-        fill="none"
-        className="text-blue"
-      >
-        <circle
-          cx="16"
-          cy="16"
-          r="14.5"
-          stroke="currentColor"
-          strokeOpacity="0.18"
-          strokeWidth="1.5"
-        />
-        <circle cx="16" cy="16" r="9.5" fill="currentColor" fillOpacity="0.1" />
-        <path
-          d="M16 10.5v11M10.5 16h11"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-        />
-      </svg>
+        style={{ width: size, height: size }}
+      />
     </span>
   );
 }
