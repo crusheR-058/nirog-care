@@ -1,0 +1,196 @@
+// Nirog Care Platform — shared clinical backend.
+// Mirrors the domain contract in src/lib/domain/types.ts and the pitch's
+// trust architecture: identity, scoped care relationships, consent, audit.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (Supabase transaction pooler, port 6543) for the app.
+  url       = env("DATABASE_URL")
+  // Direct connection (port 5432) for migrations / db push, which can't run
+  // through the pooler. On Supabase this is the "Direct"/"Session" string.
+  directUrl = env("DIRECT_URL")
+}
+
+enum Sex {
+  male
+  female
+  other
+}
+
+enum TriageLevel {
+  emergency
+  urgent
+  routine
+}
+
+enum QueueState {
+  waiting
+  in_consult
+  completed
+  no_show
+  scheduled
+}
+
+enum EncounterKind {
+  new
+  follow_up
+  pediatrics
+  chronic
+  emergency
+}
+
+enum ConsultChannel {
+  video
+  audio
+  chat
+}
+
+enum RelationshipRole {
+  self
+  child
+  parent
+  spouse
+  dependent
+}
+
+/// The authenticated person who owns one or more patient profiles.
+model Account {
+  id           String    @id @default(cuid())
+  phone        String    @unique
+  createdAt    DateTime  @default(now())
+  patients     Patient[]
+}
+
+/// A verified clinician who signs in to the doctor portal.
+model Doctor {
+  id             String        @id @default(cuid())
+  // Links this clinician profile to a Supabase Auth user (auth.users.id).
+  // RLS maps auth.uid() → this Doctor row.
+  authUserId     String?       @unique @db.Uuid
+  fullName       String
+  email          String        @unique
+  passwordHash   String?       // legacy; Supabase Auth now owns credentials
+  specialty      String
+  registrationNo String        @unique
+  languages      String[]
+  clinicName     String
+  mfaEnabled     Boolean       @default(true)
+  avatarTone     String?
+  createdAt      DateTime      @default(now())
+  queue          QueueEntry[]
+  encounters     Encounter[]
+  consents       ConsentGrant[]
+  audits         AuditEvent[]
+}
+
+/// A patient profile. An account is NOT a patient; relationships are explicit.
+model Patient {
+  id                    String           @id @default(cuid())
+  account               Account          @relation(fields: [accountId], references: [id])
+  accountId             String
+  fullName              String
+  sex                   Sex
+  dateOfBirth           DateTime
+  phoneMasked           String
+  village               String
+  district              String
+  preferredLanguage     String
+  abhaLinked            Boolean          @default(false)
+  relationshipToAccount RelationshipRole
+  allergies             String[]
+  conditions            String[]
+  currentMedications    String[]
+  avatarTone            String?
+  handovers             AriaHandover[]
+  queueEntries          QueueEntry[]
+  encounters            Encounter[]
+  consents              ConsentGrant[]
+}
+
+/// ARIA (AI intake) structured, UNVERIFIED summary handed to a clinician.
+model AriaHandover {
+  id               String      @id @default(cuid())
+  patient          Patient     @relation(fields: [patientId], references: [id])
+  patientId        String
+  createdAt        DateTime    @default(now())
+  chiefComplaint   String
+  narrative        String
+  durationText     String
+  symptoms         String[]
+  redFlags         String[]
+  vitals           Json?
+  aiConfidence     Float
+  suggestedTriage  TriageLevel
+  language         String
+  verifiedByDoctor Boolean     @default(false)
+  queueEntry       QueueEntry?
+}
+
+/// A live position in a doctor's daily queue.
+model QueueEntry {
+  id                String         @id @default(cuid())
+  patient           Patient        @relation(fields: [patientId], references: [id])
+  patientId         String
+  doctor            Doctor         @relation(fields: [doctorId], references: [id])
+  doctorId          String
+  kind              EncounterKind
+  triage            TriageLevel
+  state             QueueState     @default(scheduled)
+  checkedInAt       DateTime
+  scheduledFor      DateTime
+  channel           ConsultChannel
+  reason            String
+  connectionQuality String         @default("good")
+  handover          AriaHandover?  @relation(fields: [handoverId], references: [id])
+  handoverId        String?        @unique
+}
+
+/// A completed or in-progress clinical encounter (the care plan).
+model Encounter {
+  id             String         @id @default(cuid())
+  patient        Patient        @relation(fields: [patientId], references: [id])
+  patientId      String
+  doctor         Doctor         @relation(fields: [doctorId], references: [id])
+  doctorId       String
+  startedAt      DateTime       @default(now())
+  endedAt        DateTime?
+  channel        ConsultChannel
+  chiefComplaint String
+  assessment     String
+  clinicalNotes  String
+  prescriptions  Json           @default("[]")
+  labRequests    Json           @default("[]")
+  followUp       Json?
+  ariaAccepted   Boolean        @default(false)
+}
+
+/// Purpose-specific, revocable consent that gates record access.
+model ConsentGrant {
+  id        String   @id @default(cuid())
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  patientId String
+  doctor    Doctor   @relation(fields: [grantedTo], references: [id])
+  grantedTo String
+  purpose   String
+  scope     String[]
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  active    Boolean  @default(true)
+}
+
+/// Immutable audit trail: who / what / why.
+model AuditEvent {
+  id        String   @id @default(cuid())
+  doctor    Doctor?  @relation(fields: [actorId], references: [id])
+  actorId   String?
+  actorName String
+  action    String
+  target    String
+  reason    String?
+  at        DateTime @default(now())
+}

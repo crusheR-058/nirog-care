@@ -1,0 +1,6 @@
+# Non-app tooling (PDF generator, agents, scratch) — not needed to build/run.
+tmp/
+output/
+scripts/
+.pdf_deps/
+.agents/
