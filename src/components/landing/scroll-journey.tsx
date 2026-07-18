@@ -128,7 +128,20 @@ function SceneStage({
       aria-labelledby={`scene-${scene.id}`}
     >
       <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
-        <div className="mx-auto grid w-full max-w-6xl items-center gap-4 px-6 lg:grid-cols-2 lg:gap-10">
+        {/* giant ghost number for depth */}
+        <span
+          className="ghost-number pointer-events-none absolute select-none text-[42vh] sm:text-[56vh]"
+          style={{
+            [isEven ? "right" : "left"]: "-2%",
+            top: "50%",
+            transform: "translateY(-50%)",
+          }}
+          aria-hidden
+        >
+          {scene.no}
+        </span>
+
+        <div className="relative mx-auto grid w-full max-w-6xl items-center gap-6 px-6 lg:grid-cols-2 lg:gap-12">
           {/* Copy */}
           <motion.div
             style={{ y: copyY, opacity: copyOpacity }}
@@ -145,17 +158,20 @@ function SceneStage({
               >
                 {scene.eyebrow}
               </span>
+              <span className="text-xs font-medium text-ink-faint">
+                {index + 1} / {total}
+              </span>
             </div>
             <h2
               id={`scene-${scene.id}`}
-              className="mt-5 font-display text-4xl font-extrabold leading-[1.06] tracking-tight text-ink sm:text-5xl"
+              className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl"
             >
               {scene.title}
             </h2>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-soft">
+            <p className="mt-5 max-w-md text-base leading-relaxed text-ink-soft">
               {scene.body}
             </p>
-            <div className="mt-6 flex flex-wrap gap-2">
+            <div className="mt-7 flex flex-wrap gap-2">
               {scene.tags.map((t) => (
                 <span
                   key={t}
@@ -170,15 +186,22 @@ function SceneStage({
           {/* Diorama stage */}
           <motion.div
             style={{ scale, opacity, filter, y }}
-            className={`relative mx-auto aspect-square w-full max-w-[440px] ${
+            className={`relative mx-auto aspect-square w-full max-w-[500px] ${
               isEven ? "lg:order-2" : "lg:order-1"
             }`}
           >
-            {/* accent halo */}
+            {/* layered accent glow */}
             <div
-              className="absolute inset-[12%] rounded-full opacity-30 blur-3xl"
+              className="absolute inset-[6%] rounded-full opacity-30 blur-3xl"
               style={{ background: scene.accent }}
             />
+            <div
+              className="absolute inset-[26%] rounded-full opacity-20 blur-2xl"
+              style={{ background: scene.accent }}
+            />
+            {/* soft orbit ring */}
+            <div className="absolute inset-[4%] rounded-full border border-white/50" />
+            <div className="absolute inset-[16%] rounded-full border border-dashed border-white/40" />
             <Diorama />
           </motion.div>
         </div>

@@ -1,6 +1,8 @@
 import { MarketingNav } from "@/components/landing/marketing-nav";
 import { Hero } from "@/components/landing/hero";
+import { CareLoop } from "@/components/landing/care-loop";
 import { ScrollJourney } from "@/components/landing/scroll-journey";
+import { Bento } from "@/components/landing/bento";
 import { Closing } from "@/components/landing/closing";
 
 export default function LandingPage() {
@@ -10,7 +12,9 @@ export default function LandingPage() {
       <div aria-hidden className="fixed inset-0 -z-20 bg-[#d9e5f6]" />
       <MarketingNav />
       <Hero />
+      <CareLoop />
       <ScrollJourney />
+      <Bento />
       <Closing />
 
       {/* Crawlable copy mirror for SEO / no-JS (the journey renders client-side). */}
