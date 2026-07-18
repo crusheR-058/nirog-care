@@ -17,6 +17,7 @@ import {
   ContinuityDiorama,
 } from "@/components/landing/dioramas";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/components/landing/shared";
 
 interface Scene {
   id: string;
@@ -122,6 +123,7 @@ function SceneLayer({
 }) {
   const isLast = index === N - 1;
   const dir = index % 2 === 0 ? 1 : -1;
+  const mobile = useIsMobile();
 
   const li = useTransform(p, (v) => v * N - index);
 
@@ -139,11 +141,11 @@ function SceneLayer({
   const blur = useTransform(
     li,
     [-0.34, -0.08, 0.62, isLast ? 10 : 0.94],
-    [10, 0, 0, isLast ? 0 : 9]
+    mobile ? [0, 0, 0, 0] : [10, 0, 0, isLast ? 0 : 9]
   );
   const filter = useTransform(blur, (b) => `blur(${b}px)`);
-  const y = useTransform(li, [-0.34, 0, 1], [72, 0, -26]);
-  const x = useTransform(li, [-0.34, 0, 1], [46 * dir, 0, -20 * dir]);
+  const y = useTransform(li, [-0.34, 0, 1], mobile ? [40, 0, -16] : [72, 0, -26]);
+  const x = useTransform(li, [-0.34, 0, 1], mobile ? [20 * dir, 0, -10 * dir] : [46 * dir, 0, -20 * dir]);
 
   // Copy: slides in from the side, exits faster than it entered.
   const copyOpacity = useTransform(
@@ -154,7 +156,7 @@ function SceneLayer({
   const copyX = useTransform(
     li,
     [-0.28, -0.04, 0.5, 0.76],
-    [96 * dir, 0, 0, isLast ? 0 : -54 * dir]
+    mobile ? [36 * dir, 0, 0, isLast ? 0 : -20 * dir] : [96 * dir, 0, 0, isLast ? 0 : -54 * dir]
   );
 
   // Ghost number drifts on its own plane.
@@ -184,7 +186,7 @@ function SceneLayer({
     >
       {/* giant ghost number — its own parallax plane */}
       <motion.span
-        className="ghost-number pointer-events-none absolute top-1/2 select-none text-[42vh] sm:text-[56vh]"
+        className="ghost-number pointer-events-none absolute top-1/2 select-none text-[24vh] sm:text-[56vh]"
         style={{
           [dir === 1 ? "right" : "left"]: "-2%",
           y: ghostY,
@@ -195,7 +197,7 @@ function SceneLayer({
         {scene.no}
       </motion.span>
 
-      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-6 px-6 lg:grid-cols-2 lg:gap-12">
+      <div className="relative mx-auto grid w-full max-w-6xl items-center gap-4 px-6 pt-12 sm:gap-6 sm:pt-0 lg:grid-cols-2 lg:gap-12">
         {/* Copy */}
         <motion.div
           style={{ x: copyX, opacity: copyOpacity }}
@@ -217,7 +219,7 @@ function SceneLayer({
           </div>
           <h2
             id={`scene-${scene.id}`}
-            className="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-ink sm:text-5xl lg:text-6xl"
+            className="mt-4 font-display text-[1.9rem] font-extrabold leading-[1.05] tracking-tight text-ink sm:mt-5 sm:text-5xl lg:text-6xl"
           >
             {scene.title}
           </h2>
@@ -225,10 +227,10 @@ function SceneLayer({
             className="mt-4 h-1 w-24 origin-left rounded-full"
             style={{ background: scene.accent, scaleX: underline }}
           />
-          <p className="mt-4 max-w-md text-base leading-relaxed text-ink-soft">
+          <p className="mt-3.5 max-w-md text-[15px] leading-relaxed text-ink-soft sm:mt-4 sm:text-base">
             {scene.body}
           </p>
-          <div className="mt-7 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2 sm:mt-7">
             {scene.tags.map((t, i) => (
               <motion.span
                 key={t}
@@ -236,7 +238,7 @@ function SceneLayer({
                 variants={chipVariants}
                 initial="hidden"
                 animate={active ? "show" : "hidden"}
-                className="rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-ink-soft shadow-quiet backdrop-blur"
+                className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-ink-soft shadow-quiet backdrop-blur sm:px-4 sm:py-2"
               >
                 {t}
               </motion.span>
@@ -247,7 +249,7 @@ function SceneLayer({
         {/* Diorama stage */}
         <motion.div
           style={{ scale, opacity, filter, y, x }}
-          className={`relative mx-auto aspect-square w-full max-w-[500px] ${
+          className={`relative mx-auto aspect-square w-full max-w-[290px] sm:max-w-[500px] ${
             dir === 1 ? "lg:order-2" : "lg:order-1"
           }`}
         >

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { ArrowRight, Sparkles, ShieldCheck, Globe2, Radio } from "lucide-react";
-import { HeroVisual } from "@/components/landing/hero-visual";
+import { HeroVisual, HeroVisualMobile } from "@/components/landing/hero-visual";
 import { Magnetic, EASE } from "@/components/landing/shared";
 
 export function Hero() {
@@ -34,7 +34,7 @@ export function Hero() {
       <div className="grain pointer-events-none absolute inset-0 -z-10" />
       <div className="pointer-events-none absolute inset-0 -z-10 grid-dots opacity-[0.32] [mask-image:radial-gradient(65%_55%_at_40%_35%,#000_10%,transparent_75%)]" />
 
-      <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-[1.05fr_1fr] lg:gap-8">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-8">
         {/* ── copy ── */}
         <motion.div style={{ y: copyY, opacity: copyOpacity }}>
           <motion.div
@@ -84,10 +84,10 @@ export function Hero() {
             transition={{ duration: 0.7, ease: EASE, delay: 0.28 }}
             className="mt-9 flex flex-wrap items-center gap-3"
           >
-            <Magnetic>
+            <Magnetic className="w-full sm:w-auto">
               <Link
                 href="/portal"
-                className="group inline-flex h-13 items-center gap-2 rounded-full bg-ink px-8 text-[15px] font-semibold text-white transition-all hover:brightness-110 active:scale-[0.97]"
+                className="group inline-flex h-13 w-full items-center justify-center gap-2 rounded-full bg-ink px-8 text-[15px] font-semibold text-white transition-all hover:brightness-110 active:scale-[0.97] sm:w-auto"
               >
                 Start Consultation
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
@@ -124,6 +124,7 @@ export function Hero() {
         >
           <motion.div style={{ y: visualY, scale: visualScale, opacity: visualOpacity }}>
             <HeroVisual />
+            <HeroVisualMobile />
           </motion.div>
         </motion.div>
       </div>

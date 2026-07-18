@@ -149,7 +149,7 @@ const STEPS: Step[] = [
 function StepCard({ step, index }: { step: Step; index: number }) {
   const Icon = step.icon;
   return (
-    <div className="relative flex w-[78vw] max-w-[360px] shrink-0 flex-col overflow-hidden rounded-[1.75rem] bg-white p-7 shadow-quiet transition-shadow hover:shadow-lift sm:w-[360px]">
+    <div className="relative flex w-[76vw] max-w-[360px] shrink-0 flex-col overflow-hidden rounded-[1.75rem] bg-white p-5 shadow-quiet transition-shadow hover:shadow-lift sm:w-[360px] sm:p-7">
       {/* accent top bar + ghost number */}
       <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: step.bar }} />
       <span className="ghost-number pointer-events-none absolute -right-2 -top-4 text-[7.5rem]">
@@ -220,7 +220,7 @@ export function CareLoop() {
           <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-green shadow-quiet">
             The care loop
           </span>
-          <h2 className="mt-4 font-display text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
+          <h2 className="mt-4 font-display text-3xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
             <WordReveal text="Every interaction, one episode." faintFrom={2} />
           </h2>
         </motion.div>

@@ -14,6 +14,19 @@ import { cn } from "@/lib/utils";
 
 export const EASE = [0.22, 1, 0.36, 1] as const;
 
+/** True below the given width — used to swap heavy effects for cheap ones. */
+export function useIsMobile(query = "(max-width: 640px)") {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const update = () => setMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [query]);
+  return mobile;
+}
+
 /** Standard fade/slide reveal with optional direction. */
 export function Reveal({
   children,
@@ -76,7 +89,7 @@ export function SectionHeader({
       >
         {eyebrow}
       </span>
-      <h2 className="mt-5 text-balance font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]">
+      <h2 className="mt-5 text-balance font-display text-[1.9rem] font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-[3.4rem]">
         <WordReveal text={title} faintFrom={faintFrom} />
       </h2>
       {sub && (

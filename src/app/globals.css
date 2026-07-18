@@ -367,6 +367,19 @@
       transform: translateY(0) scale(1);
     }
   }
+  /* Mobile: trade ambient loops for battery + frame rate. Layout unchanged. */
+  @media (max-width: 640px) {
+    .aurora-blob {
+      animation: none;
+      filter: blur(48px);
+    }
+    .grain::after {
+      display: none;
+    }
+    .float-y {
+      animation: none;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
