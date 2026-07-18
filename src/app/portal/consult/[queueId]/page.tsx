@@ -54,6 +54,7 @@ export default async function ConsultPage({
           </div>
 
           <ConsultStage
+            room={item.id}
             patientName={patient.fullName}
             avatarTone={patient.avatarTone}
             channel={item.channel}

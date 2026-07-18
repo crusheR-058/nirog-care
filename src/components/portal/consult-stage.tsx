@@ -8,80 +8,157 @@ import {
   VideoOff,
   PhoneOff,
   Phone,
-  MessageSquare,
   Signal,
+  Link2,
+  Check,
+  CameraOff,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { ConsultChannel } from "@/lib/domain/types";
 import { CONNECTION } from "@/lib/domain/labels";
+import { useCall, useVideoRef } from "@/lib/webrtc/use-call";
 
 /**
- * A mock consultation surface. Real WebRTC would mount here; the point for the
- * portal is the clinical flow around it, including graceful downgrade to audio
- * on weak rural networks (the pitch's "audio-first" differentiator).
+ * The live consultation surface — a real WebRTC call. The doctor's camera and
+ * mic are captured on Connect; the patient joins from the shareable
+ * /call/<room> link and the two peers stream directly to each other. Mute and
+ * camera toggles flip the live tracks, so the other side genuinely stops
+ * hearing/seeing.
  */
 export function ConsultStage({
+  room,
   patientName,
   avatarTone,
   channel,
   connection,
 }: {
+  room: string;
   patientName: string;
   avatarTone?: string;
   channel: ConsultChannel;
   connection: "good" | "fair" | "poor";
 }) {
-  const [live, setLive] = useState(false);
+  const call = useCall(room, "doctor", {
+    startWithVideo: channel !== "audio",
+  });
+  const localRef = useVideoRef(call.localStream);
+  const remoteRef = useVideoRef(call.remoteStream);
+
   const [seconds, setSeconds] = useState(0);
-  const [mic, setMic] = useState(true);
-  const [cam, setCam] = useState(channel === "video");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!live) return;
+    if (call.status !== "connected") return;
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
-  }, [live]);
+  }, [call.status]);
 
   const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
     seconds % 60
   ).padStart(2, "0")}`;
   const conn = CONNECTION[connection];
-  const showVideo = cam && channel === "video" && connection !== "poor";
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/call/${room}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }
+
+  const inCall = call.status === "waiting" || call.status === "connecting" || call.status === "connected";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-hairline bg-ink shadow-lift">
-      <div className="relative aspect-video w-full">
-        {/* Ambient video placeholder */}
-        <div className="absolute inset-0 bg-[radial-gradient(120%_100%_at_50%_0%,#2a2a30_0%,#0c0c0e_70%)]" />
-        <div className="absolute inset-0 grid place-items-center">
-          {showVideo ? (
+      <div className="relative aspect-video w-full bg-[radial-gradient(120%_100%_at_50%_0%,#2a2a30_0%,#0c0c0e_70%)]">
+        {/* remote (patient) video — the main stage */}
+        <video
+          ref={remoteRef}
+          autoPlay
+          playsInline
+          data-remote
+          className={cn(
+            "absolute inset-0 size-full object-cover",
+            call.remoteStream ? "opacity-100" : "opacity-0"
+          )}
+        />
+
+        {/* local preview — fullscreen while waiting, PiP once connected */}
+        <video
+          ref={localRef}
+          autoPlay
+          playsInline
+          muted
+          data-local
+          className={cn(
+            "-scale-x-100 object-cover transition-all duration-500",
+            call.remoteStream
+              ? "absolute bottom-3 right-3 z-10 h-24 w-36 rounded-xl border border-white/20 shadow-float sm:h-28 sm:w-44"
+              : "absolute inset-0 size-full",
+            call.localStream && call.camOn ? "opacity-100" : "opacity-0"
+          )}
+        />
+
+        {/* overlays by state */}
+        {call.status === "idle" && (
+          <div className="absolute inset-0 grid place-items-center">
             <div className="flex flex-col items-center gap-3 text-white/80">
               <Avatar name={patientName} tone={avatarTone as never} size="lg" />
               <p className="text-sm">{patientName}</p>
-              {live && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-red/90 px-2.5 py-0.5 text-xs font-medium text-white">
-                  <span className="size-1.5 animate-pulse rounded-full bg-white" />
-                  LIVE
-                </span>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 text-white/70">
-              <Avatar name={patientName} tone={avatarTone as never} size="lg" />
-              <p className="text-sm">
-                {channel === "chat"
-                  ? "Chat consultation"
-                  : connection === "poor"
-                    ? "Audio only · weak network"
-                    : "Camera off · audio"}
+              <p className="text-xs text-white/50">
+                Connect to start the secure video consultation
               </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Connection + timer chips */}
-        <div className="absolute left-3 top-3 flex items-center gap-2">
+        {call.status === "media-error" && (
+          <div className="absolute inset-0 grid place-items-center px-8 text-center">
+            <div className="flex flex-col items-center gap-2 text-white/80">
+              <CameraOff className="size-7 text-red" />
+              <p className="text-sm font-medium">Camera or microphone unavailable</p>
+              <p className="text-xs text-white/50">
+                Allow camera & mic access in your browser, then try again.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {inCall && !call.camOn && !call.remoteStream && (
+          <div className="absolute inset-0 grid place-items-center">
+            <div className="flex flex-col items-center gap-3 text-white/70">
+              <Avatar name={patientName} tone={avatarTone as never} size="lg" />
+              <p className="text-xs">Camera off · audio consultation</p>
+            </div>
+          </div>
+        )}
+
+        {(call.status === "waiting" || call.status === "connecting") && (
+          <div className="absolute inset-x-0 bottom-4 z-10 flex justify-center">
+            <button
+              type="button"
+              onClick={copyLink}
+              className="inline-flex items-center gap-2 rounded-full bg-black/50 px-4 py-2 text-xs font-semibold text-white backdrop-blur transition-colors hover:bg-black/70"
+            >
+              {copied ? (
+                <>
+                  <Check className="size-3.5 text-green" /> Link copied — send it to the patient
+                </>
+              ) : (
+                <>
+                  <Link2 className="size-3.5" />
+                  {call.status === "connecting"
+                    ? "Connecting to patient…"
+                    : "Waiting for patient — copy join link"}
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* status chips */}
+        <div className="absolute left-3 top-3 z-10 flex items-center gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium backdrop-blur",
@@ -94,54 +171,54 @@ export function ConsultStage({
           >
             <Signal className="size-3.5" /> {conn.label}
           </span>
-          {live && (
-            <span className="tnum rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-              {clock}
-            </span>
+          {call.status === "connected" && (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-red/90 px-2.5 py-1 text-xs font-medium text-white">
+                <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                LIVE
+              </span>
+              <span className="tnum rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+                {clock}
+              </span>
+            </>
           )}
         </div>
       </div>
 
-      {/* Controls */}
+      {/* controls */}
       <div className="flex items-center justify-center gap-2.5 bg-ink px-4 py-3">
-        {channel !== "chat" && (
+        {inCall && (
           <>
             <StageButton
-              on={mic}
-              onClick={() => setMic((v) => !v)}
+              on={call.micOn}
+              onClick={call.toggleMic}
               iconOn={<Mic className="size-5" />}
               iconOff={<MicOff className="size-5" />}
-              label="Mic"
+              label="microphone"
             />
-            {channel === "video" && (
-              <StageButton
-                on={cam}
-                onClick={() => setCam((v) => !v)}
-                iconOn={<Video className="size-5" />}
-                iconOff={<VideoOff className="size-5" />}
-                label="Camera"
-              />
-            )}
+            <StageButton
+              on={call.camOn}
+              onClick={call.toggleCam}
+              iconOn={<Video className="size-5" />}
+              iconOff={<VideoOff className="size-5" />}
+              label="camera"
+            />
           </>
         )}
 
-        {!live ? (
+        {!inCall ? (
           <button
             type="button"
-            onClick={() => setLive(true)}
+            onClick={() => void call.start()}
             className="inline-flex h-11 items-center gap-2 rounded-full bg-green px-6 text-sm font-semibold text-white transition-transform active:scale-95"
           >
-            {channel === "chat" ? (
-              <MessageSquare className="size-5" />
-            ) : (
-              <Phone className="size-5" />
-            )}
-            {channel === "chat" ? "Open chat" : "Connect"}
+            <Phone className="size-5" />
+            {call.status === "ended" ? "Reconnect" : "Connect"}
           </button>
         ) : (
           <button
             type="button"
-            onClick={() => setLive(false)}
+            onClick={call.end}
             className="inline-flex h-11 items-center gap-2 rounded-full bg-red px-6 text-sm font-semibold text-white transition-transform active:scale-95"
           >
             <PhoneOff className="size-5" /> End
@@ -173,9 +250,7 @@ function StageButton({
       aria-pressed={!on}
       className={cn(
         "grid size-11 place-items-center rounded-full transition-colors",
-        on
-          ? "bg-white/10 text-white hover:bg-white/20"
-          : "bg-red/90 text-white"
+        on ? "bg-white/10 text-white hover:bg-white/20" : "bg-red/90 text-white"
       )}
     >
       {on ? iconOn : iconOff}
