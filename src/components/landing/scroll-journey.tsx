@@ -135,7 +135,9 @@ function SceneLayer({
   );
   const opacity = useTransform(
     li,
-    [-0.34, -0.06, 0.62, isLast ? 10 : 0.94],
+    mobile
+      ? [-0.24, -0.07, 0.6, isLast ? 10 : 0.76]
+      : [-0.34, -0.06, 0.62, isLast ? 10 : 0.94],
     [0, 1, 1, isLast ? 1 : 0]
   );
   const blur = useTransform(
@@ -150,7 +152,9 @@ function SceneLayer({
   // Copy: slides in from the side, exits faster than it entered.
   const copyOpacity = useTransform(
     li,
-    [-0.28, -0.08, 0.5, isLast ? 10 : 0.72],
+    mobile
+      ? [-0.22, -0.07, 0.48, isLast ? 10 : 0.66]
+      : [-0.28, -0.08, 0.5, isLast ? 10 : 0.72],
     [0, 1, 1, isLast ? 1 : 0]
   );
   const copyX = useTransform(
@@ -163,7 +167,9 @@ function SceneLayer({
   const ghostY = useTransform(li, [-0.34, 1], ["16%", "-18%"]);
   const ghostOpacity = useTransform(
     li,
-    [-0.26, -0.06, 0.55, isLast ? 10 : 0.8],
+    mobile
+      ? [-0.22, -0.07, 0.5, isLast ? 10 : 0.68]
+      : [-0.26, -0.06, 0.55, isLast ? 10 : 0.8],
     [0, 1, 1, isLast ? 1 : 0]
   );
 
@@ -172,9 +178,12 @@ function SceneLayer({
   const ringRotateInv = useTransform(ringRotate, (r) => -r);
   const underline = useTransform(li, [0.02, 0.3], [0, 1]);
 
-  // Chips pop only while the scene holds focus.
+  // Chips pop only while the scene holds focus (desktop). On mobile they are
+  // static — the state flip re-renders the layer mid-scroll and reads as jitter.
   const [active, setActive] = useState(index === 0);
-  useMotionValueEvent(li, "change", (v) => setActive(v > -0.05 && v < 0.62));
+  useMotionValueEvent(li, "change", (v) => {
+    if (!mobile) setActive(v > -0.05 && v < 0.62);
+  });
 
   const Diorama = scene.Diorama;
 
@@ -236,8 +245,8 @@ function SceneLayer({
                 key={t}
                 custom={i}
                 variants={chipVariants}
-                initial="hidden"
-                animate={active ? "show" : "hidden"}
+                initial={mobile ? false : "hidden"}
+                animate={mobile || active ? "show" : "hidden"}
                 className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-ink-soft shadow-quiet backdrop-blur sm:px-4 sm:py-2"
               >
                 {t}
@@ -350,21 +359,25 @@ function ProgressRail({ progress }: { progress: MotionValue<number> }) {
  */
 export function ScrollJourney() {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const mobile = useIsMobile();
   const { scrollYProgress } = useScroll({
     target: wrapRef,
     offset: ["start start", "end end"],
   });
-  const p = useSpring(scrollYProgress, {
+  const sprung = useSpring(scrollYProgress, {
     stiffness: 110,
     damping: 26,
     restDelta: 0.001,
   });
+  // Touch scrolling has its own momentum — layering a spring on top overshoots
+  // and reads as jitter, so phones track the raw progress directly.
+  const p = mobile ? scrollYProgress : sprung;
 
   return (
     <div id="world" ref={wrapRef} className="relative h-[550vh]">
       {/* raw progress: the sprung value settles short of 1 and leaks the rail */}
       <ProgressRail progress={scrollYProgress} />
-      <div className="sticky top-0 h-dvh overflow-hidden">
+      <div className="sticky top-0 h-svh overflow-hidden">
         <Atmosphere progress={p} />
         {SCENES.map((scene, i) => (
           <SceneLayer key={scene.id} scene={scene} index={i} p={p} />
