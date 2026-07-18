@@ -57,7 +57,7 @@ export function Closing() {
   return (
     <>
       {/* Trust */}
-      <section id="trust" className="relative px-6 py-24">
+      <section id="trust" className="relative overflow-x-clip px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <div className="grid items-center gap-10 lg:grid-cols-2">
             <Reveal from="left">
