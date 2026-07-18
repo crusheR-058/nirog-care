@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   Radio,
@@ -17,7 +17,25 @@ import {
   heartbeatAction,
   claimQueueAction,
 } from "@/app/portal/actions";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+
+/** Minimal shape the dock renders — matches the pool RLS visibility (no PII). */
+type PoolItem = Pick<
+  QueueItemView,
+  "id" | "triage" | "channel" | "reason" | "redFlagCount"
+>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapPoolRow(q: any): PoolItem {
+  return {
+    id: q.id,
+    triage: q.triage,
+    channel: q.channel,
+    reason: q.reason || q.handover?.chiefComplaint || "New consult request",
+    redFlagCount: q.handover?.redFlags?.length ?? 0,
+  };
+}
 
 const CHANNEL_ICON = { video: Video, audio: Phone, chat: MessageSquare } as const;
 const TRIAGE_TONE = {
@@ -34,17 +52,59 @@ const TRIAGE_TONE = {
  */
 export function IncomingDock({
   initialOnCall,
-  pool,
+  pool: initialPool,
 }: {
   initialOnCall: boolean;
   pool: QueueItemView[];
 }) {
   const router = useRouter();
   const [onCall, setOnCall] = useState(initialOnCall);
+  const [pool, setPool] = useState<PoolItem[]>(initialPool.map(mapPoolRow));
   const [pendingToggle, startToggle] = useTransition();
   const [claiming, setClaiming] = useState<string | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const prevIdsRef = useRef<Set<string>>(new Set(pool.map((p) => p.id)));
+  const prevIdsRef = useRef<Set<string>>(new Set(initialPool.map((p) => p.id)));
+
+  // Fetch the current pool directly (client-side, RLS-scoped). Self-contained
+  // so it never depends on an RSC refresh reaching this component.
+  const refetchPool = useCallback(async () => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("QueueEntry")
+      .select("id,triage,channel,reason,handover:AriaHandover(redFlags,chiefComplaint)")
+      .is("doctorId", null)
+      .eq("state", "waiting");
+    setPool((data ?? []).map(mapPoolRow));
+  }, []);
+
+  // While on call: subscribe to QueueEntry changes and refetch the pool. This
+  // is the live "incoming patient" path — realtime delivers the pool insert
+  // (RLS-permitted) and we refetch + chime.
+  useEffect(() => {
+    if (!onCall) return;
+    const supabase = createClient();
+    let channel: ReturnType<typeof supabase.channel> | undefined;
+    void refetchPool();
+    (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) supabase.realtime.setAuth(session.access_token);
+      channel = supabase
+        .channel(`nirog-pool-${crypto.randomUUID()}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "QueueEntry" },
+          () => void refetchPool()
+        )
+        .subscribe();
+    })();
+    const beat = setInterval(() => void heartbeatAction(), 30_000);
+    return () => {
+      clearInterval(beat);
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [onCall, refetchPool]);
 
   // Chime when a genuinely new request appears (not on the first render).
   useEffect(() => {
@@ -56,13 +116,6 @@ export function IncomingDock({
     prevIdsRef.current = new Set(pool.map((p) => p.id));
     if (fresh) chime(audioCtxRef.current);
   }, [pool, onCall]);
-
-  // Heartbeat so the doctor stays "live" in the pool while on call.
-  useEffect(() => {
-    if (!onCall) return;
-    const id = setInterval(() => void heartbeatAction(), 30_000);
-    return () => clearInterval(id);
-  }, [onCall]);
 
   function toggle() {
     const next = !onCall;
@@ -76,6 +129,7 @@ export function IncomingDock({
     }
     void audioCtxRef.current?.resume();
     setOnCall(next);
+    if (!next) setPool([]);
     startToggle(async () => {
       await setOnCallAction(next);
       router.refresh();
