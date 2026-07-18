@@ -48,6 +48,21 @@ export interface NirogDataSource {
   /** Persist a finished encounter and mark ARIA reviewed. */
   saveEncounter(input: SaveEncounterInput): Promise<Encounter>;
   acceptHandover(handoverId: string): Promise<void>;
+  /**
+   * On-demand consult requests waiting for ANY doctor (doctorId = null).
+   * Returns a PII-free preview (triage/reason/red-flags) — the full chart
+   * only unlocks after the request is claimed.
+   */
+  getPoolQueue(): Promise<QueueItemView[]>;
+  /**
+   * Atomically claim an unassigned request: assigns it to the current doctor
+   * and flips it to in_consult. Returns false if another doctor got it first.
+   */
+  claimQueueItem(queueId: string): Promise<boolean>;
+  /** Toggle the doctor's on-call availability (and beat the heartbeat). */
+  setOnCall(on: boolean): Promise<void>;
+  /** Refresh the availability heartbeat without changing on-call state. */
+  heartbeat(): Promise<void>;
 }
 
 export interface SaveEncounterInput {

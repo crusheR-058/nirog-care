@@ -47,6 +47,8 @@ export interface Doctor {
   avatarTone?: string;
   onboardingComplete: boolean;
   country?: string;
+  /** On-demand availability — when true the doctor is in the matching pool. */
+  onCall?: boolean;
 }
 
 /** Full onboarding/verification payload (stored as JSON on the Doctor row). */
@@ -176,7 +178,8 @@ export interface Vitals {
 export interface QueueEntry {
   id: string;
   patientId: string;
-  doctorId: string;
+  /** Null while the request sits in the on-demand pool (unclaimed). */
+  doctorId?: string;
   kind: EncounterKind;
   triage: TriageLevel;
   state: QueueState;

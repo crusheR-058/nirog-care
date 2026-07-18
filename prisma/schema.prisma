@@ -59,11 +59,17 @@ enum RelationshipRole {
 }
 
 /// The authenticated person who owns one or more patient profiles.
+/// This is the patient-app user: signs in (phone OTP) against the SAME
+/// Supabase Auth as doctors; `authUserId` maps auth.uid() → this Account.
 model Account {
-  id           String    @id @default(cuid())
-  phone        String    @unique
-  createdAt    DateTime  @default(now())
-  patients     Patient[]
+  id            String    @id @default(cuid())
+  phone         String    @unique
+  // Links the patient-app user to a Supabase Auth user (auth.users.id).
+  authUserId    String?   @unique @db.Uuid
+  // Expo push token so we can notify the patient when a doctor picks up.
+  expoPushToken String?
+  createdAt     DateTime  @default(now())
+  patients      Patient[]
 }
 
 /// A verified clinician who signs in to the doctor portal.
@@ -86,6 +92,10 @@ model Doctor {
   onboardingComplete Boolean   @default(false)
   country            String?
   profile            Json?
+  // On-demand availability: doctors toggle "on call" and the portal beats a
+  // heartbeat into lastSeenAt, so the patient queue matches only live doctors.
+  onCall             Boolean   @default(false)
+  lastSeenAt         DateTime?
   createdAt      DateTime      @default(now())
   queue          QueueEntry[]
   encounters     Encounter[]
@@ -136,13 +146,16 @@ model AriaHandover {
   queueEntry       QueueEntry?
 }
 
-/// A live position in a doctor's daily queue.
+/// A live position in the consult queue. When a patient requests an on-demand
+/// consult, doctorId is NULL (unassigned pool); an on-call doctor claims it
+/// atomically (sets doctorId + state=in_consult). Scheduled/seeded rows keep a
+/// doctor from the start.
 model QueueEntry {
   id                String         @id @default(cuid())
   patient           Patient        @relation(fields: [patientId], references: [id])
   patientId         String
-  doctor            Doctor         @relation(fields: [doctorId], references: [id])
-  doctorId          String
+  doctor            Doctor?        @relation(fields: [doctorId], references: [id])
+  doctorId          String?
   kind              EncounterKind
   triage            TriageLevel
   state             QueueState     @default(scheduled)

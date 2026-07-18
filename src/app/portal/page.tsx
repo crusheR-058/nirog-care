@@ -4,6 +4,7 @@ import { getDataSource } from "@/lib/data/source";
 import { StatTile } from "@/components/portal/stat-tile";
 import { QueueList } from "@/components/portal/queue-list";
 import { QueueRealtime } from "@/components/portal/queue-realtime";
+import { IncomingDock } from "@/components/portal/incoming-dock";
 import { AriaSpotlight } from "@/components/portal/aria-spotlight";
 import { TrustLog } from "@/components/portal/trust-log";
 
@@ -25,6 +26,9 @@ export default async function TodayPage() {
     ds.getQueue(),
     ds.getRecentAudit(5),
   ]);
+
+  // On-demand pool: only fetched (and only visible) while the doctor is on call.
+  const pool = doctor.onCall ? await ds.getPoolQueue() : [];
 
   // Top emergency with an ARIA handover drives the spotlight.
   const spotlight = queue.find(
@@ -83,6 +87,9 @@ export default async function TodayPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.55fr_1fr]">
         <section>
+          <div className="mb-3">
+            <IncomingDock initialOnCall={doctor.onCall ?? false} pool={pool} />
+          </div>
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold text-ink">

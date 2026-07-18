@@ -51,6 +51,7 @@ function mapDoctor(d: NonNullable<DbDoctor>): Doctor {
     avatarTone: d.avatarTone ?? undefined,
     onboardingComplete: d.onboardingComplete ?? false,
     country: d.country ?? undefined,
+    onCall: d.onCall ?? false,
   };
 }
 
@@ -105,6 +106,68 @@ export function createPrismaDataSource(): NirogDataSource {
       return mapDoctor(await currentDoctor());
     },
 
+    async getPoolQueue(): Promise<QueueItemView[]> {
+      const now = new Date();
+      const rows = await prisma.queueEntry.findMany({
+        where: { doctorId: null, state: "waiting" },
+        include: { handover: true },
+      });
+      const rank = { emergency: 0, urgent: 1, routine: 2 } as const;
+      return rows
+        .map((q) => ({
+          id: q.id,
+          patientId: q.patientId,
+          doctorId: q.doctorId ?? undefined,
+          kind: q.kind,
+          triage: q.triage,
+          state: q.state,
+          checkedInAt: q.checkedInAt.toISOString(),
+          scheduledFor: q.scheduledFor.toISOString(),
+          channel: q.channel,
+          reason: q.reason || q.handover?.chiefComplaint || "New consult request",
+          handoverId: q.handoverId ?? undefined,
+          connectionQuality:
+            q.connectionQuality as QueueItemView["connectionQuality"],
+          patientName: "Incoming patient",
+          patientAge: 0,
+          patientAvatarTone: undefined,
+          redFlagCount: q.handover?.redFlags.length ?? 0,
+          waitingMinutes: minutesSince(q.checkedInAt.toISOString(), now),
+        }))
+        .sort(
+          (a, b) =>
+            rank[a.triage] - rank[b.triage] ||
+            new Date(a.checkedInAt).getTime() -
+              new Date(b.checkedInAt).getTime()
+        );
+    },
+
+    async claimQueueItem(queueId: string): Promise<boolean> {
+      const doctor = await currentDoctor();
+      // Atomic conditional update — updateMany returns the affected count.
+      const res = await prisma.queueEntry.updateMany({
+        where: { id: queueId, doctorId: null, state: "waiting" },
+        data: { doctorId: doctor.id, state: "in_consult" },
+      });
+      return res.count > 0;
+    },
+
+    async setOnCall(on: boolean): Promise<void> {
+      const doctor = await currentDoctor();
+      await prisma.doctor.update({
+        where: { id: doctor.id },
+        data: { onCall: on, lastSeenAt: new Date() },
+      });
+    },
+
+    async heartbeat(): Promise<void> {
+      const doctor = await currentDoctor();
+      await prisma.doctor.update({
+        where: { id: doctor.id },
+        data: { lastSeenAt: new Date() },
+      });
+    },
+
     async getQueue(): Promise<QueueItemView[]> {
       const doctor = await currentDoctor();
       const now = new Date();
@@ -124,7 +187,7 @@ export function createPrismaDataSource(): NirogDataSource {
         .map((q) => ({
           id: q.id,
           patientId: q.patientId,
-          doctorId: q.doctorId,
+          doctorId: q.doctorId ?? undefined,
           kind: q.kind,
           triage: q.triage,
           state: q.state,

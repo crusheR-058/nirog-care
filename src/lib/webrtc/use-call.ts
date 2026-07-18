@@ -13,9 +13,27 @@ export type CallStatus =
   | "connected"
   | "ended";
 
+// STUN gets peers connected on most home/Wi-Fi networks. A TURN relay is
+// required for the hard cases — carrier-grade NAT and restrictive mobile
+// networks common in rural India — where a direct path can't be found. TURN
+// creds are injected via NEXT_PUBLIC_TURN_* env (empty = STUN-only fallback).
+const TURN_URLS = (process.env.NEXT_PUBLIC_TURN_URLS ?? "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
+
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    ...(TURN_URLS.length
+      ? [
+          {
+            urls: TURN_URLS,
+            username: process.env.NEXT_PUBLIC_TURN_USERNAME ?? "",
+            credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? "",
+          },
+        ]
+      : []),
   ],
 };
 

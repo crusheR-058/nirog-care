@@ -78,9 +78,32 @@ export function createMockDataSource(): NirogDataSource {
     });
   }
 
+  let onCall = false;
+
   return {
     async getDoctor(): Promise<Doctor> {
-      return { ...DOCTOR };
+      return { ...DOCTOR, onCall };
+    },
+
+    async getPoolQueue(): Promise<QueueItemView[]> {
+      // Simulate an incoming pool from the waiting entries.
+      return toView(new Date()).filter((q) => q.state === "waiting");
+    },
+
+    async claimQueueItem(queueId: string): Promise<boolean> {
+      const item = queue.find((q) => q.id === queueId);
+      if (!item || item.state !== "waiting") return false;
+      item.state = "in_consult";
+      item.doctorId = DOCTOR.id;
+      return true;
+    },
+
+    async setOnCall(on: boolean): Promise<void> {
+      onCall = on;
+    },
+
+    async heartbeat(): Promise<void> {
+      // no-op in the mock
     },
 
     async getDashboardStats(): Promise<DashboardStats> {

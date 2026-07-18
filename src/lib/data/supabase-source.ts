@@ -85,6 +85,7 @@ export function createSupabaseDataSource(
       avatarTone: d.avatarTone ?? undefined,
       onboardingComplete: d.onboardingComplete ?? false,
       country: d.country ?? undefined,
+      onCall: d.onCall ?? false,
     };
   }
 
@@ -163,9 +164,94 @@ export function createSupabaseDataSource(
       );
   }
 
+  // Unassigned on-demand requests (doctorId = null, waiting) — visible to any
+  // on-call doctor via the pool RLS policy. Patient PII is NOT joined (blocked
+  // until claim); we surface triage/reason/red-flags for the accept decision.
+  async function poolView(): Promise<QueueItemView[]> {
+    const now = new Date();
+    const { data, error } = await supabase
+      .from("QueueEntry")
+      .select("*, handover:AriaHandover(redFlags,chiefComplaint)")
+      .is("doctorId", null)
+      .eq("state", "waiting");
+    if (error) throw error;
+    return (data ?? [])
+      .map((q: Row) => ({
+        id: q.id,
+        patientId: q.patientId,
+        doctorId: q.doctorId ?? undefined,
+        kind: q.kind,
+        triage: q.triage,
+        state: q.state,
+        checkedInAt: q.checkedInAt,
+        scheduledFor: q.scheduledFor,
+        channel: q.channel,
+        reason: q.reason || q.handover?.chiefComplaint || "New consult request",
+        handoverId: q.handoverId ?? undefined,
+        connectionQuality: q.connectionQuality,
+        patientName: "Incoming patient",
+        patientAge: 0,
+        patientAvatarTone: undefined,
+        redFlagCount: q.handover?.redFlags?.length ?? 0,
+        waitingMinutes: minutesSince(q.checkedInAt, now),
+      }))
+      .sort(
+        (a: QueueItemView, b: QueueItemView) =>
+          TRIAGE_RANK[a.triage] - TRIAGE_RANK[b.triage] ||
+          new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime()
+      );
+  }
+
   return {
     async getDoctor(): Promise<Doctor> {
       return mapDoctor(await doctor());
+    },
+
+    async getPoolQueue(): Promise<QueueItemView[]> {
+      return poolView();
+    },
+
+    async claimQueueItem(queueId: string): Promise<boolean> {
+      const d = await doctor();
+      // Atomic: only succeeds while still unassigned + waiting. A second
+      // doctor's identical update matches 0 rows once the first commits.
+      const { data, error } = await supabase
+        .from("QueueEntry")
+        .update({ doctorId: d.id, state: "in_consult" })
+        .eq("id", queueId)
+        .is("doctorId", null)
+        .eq("state", "waiting")
+        .select("id");
+      if (error) throw error;
+      const claimed = (data?.length ?? 0) > 0;
+      if (claimed) {
+        await supabase.from("AuditEvent").insert({
+          id: uid(),
+          actorId: d.id,
+          actorName: d.fullName,
+          action: "Accepted incoming consult",
+          target: queueId,
+          at: new Date().toISOString(),
+        });
+      }
+      return claimed;
+    },
+
+    async setOnCall(on: boolean): Promise<void> {
+      const d = await doctor();
+      const { error } = await supabase
+        .from("Doctor")
+        .update({ onCall: on, lastSeenAt: new Date().toISOString() })
+        .eq("id", d.id);
+      if (error) throw error;
+    },
+
+    async heartbeat(): Promise<void> {
+      const d = await doctor();
+      await supabase
+        .from("Doctor")
+        .update({ lastSeenAt: new Date().toISOString() })
+        .eq("id", d.id);
     },
 
     async getQueue(): Promise<QueueItemView[]> {

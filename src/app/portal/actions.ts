@@ -62,6 +62,35 @@ export async function acceptHandoverAction(handoverId: string) {
   revalidatePath("/portal");
 }
 
+/** Toggle the doctor's on-call availability (enters/leaves the matching pool). */
+export async function setOnCallAction(on: boolean) {
+  await requireDoctor();
+  const ds = await getDataSource();
+  await ds.setOnCall(on);
+  revalidatePath("/portal");
+}
+
+/** Lightweight availability heartbeat, called on an interval while on call. */
+export async function heartbeatAction() {
+  await requireDoctor();
+  const ds = await getDataSource();
+  await ds.heartbeat();
+}
+
+/**
+ * Accept an incoming pool request. Returns whether THIS doctor got it — the
+ * claim is atomic, so a losing race returns claimed:false (someone else took it).
+ */
+export async function claimQueueAction(
+  queueId: string
+): Promise<{ ok: true; claimed: boolean }> {
+  await requireDoctor();
+  const ds = await getDataSource();
+  const claimed = await ds.claimQueueItem(queueId);
+  revalidatePath("/portal");
+  return { ok: true, claimed };
+}
+
 export async function saveEncounterAction(
   input: SaveEncounterInput
 ): Promise<SaveResult> {

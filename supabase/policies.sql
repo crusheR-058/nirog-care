@@ -38,6 +38,12 @@ drop policy if exists doctor_select_self on public."Doctor";
 create policy doctor_select_self on public."Doctor" for select to authenticated
   using ("authUserId" = auth.uid());
 
+-- Doctor: can update only their own profile row (on-call toggle + heartbeat).
+drop policy if exists doctor_update_self on public."Doctor";
+create policy doctor_update_self on public."Doctor" for update to authenticated
+  using ("authUserId" = auth.uid())
+  with check ("authUserId" = auth.uid());
+
 -- Patient: readable only if accessible to the current doctor.
 drop policy if exists patient_select_accessible on public."Patient";
 create policy patient_select_accessible on public."Patient" for select to authenticated
