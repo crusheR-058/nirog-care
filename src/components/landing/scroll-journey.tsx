@@ -360,7 +360,8 @@ export function ScrollJourney() {
 
   return (
     <div id="world" ref={wrapRef} className="relative h-[550vh]">
-      <ProgressRail progress={p} />
+      {/* raw progress: the sprung value settles short of 1 and leaks the rail */}
+      <ProgressRail progress={scrollYProgress} />
       <div className="sticky top-0 h-dvh overflow-hidden">
         <Atmosphere progress={p} />
         {SCENES.map((scene, i) => (

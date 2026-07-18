@@ -2,7 +2,7 @@ import { MarketingNav } from "@/components/landing/marketing-nav";
 import { Hero } from "@/components/landing/hero";
 import { CareLoop } from "@/components/landing/care-loop";
 import { ScrollJourney } from "@/components/landing/scroll-journey";
-import { Bento } from "@/components/landing/bento";
+import { Features } from "@/components/landing/features";
 import { Closing } from "@/components/landing/closing";
 
 export default function LandingPage() {
@@ -14,7 +14,7 @@ export default function LandingPage() {
       <Hero />
       <CareLoop />
       <ScrollJourney />
-      <Bento />
+      <Features />
       <Closing />
 
       {/* Crawlable copy mirror for SEO / no-JS (the journey renders client-side). */}

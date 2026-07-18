@@ -201,7 +201,7 @@ export function CareLoop() {
   const lineScale = useTransform(p, [0.06, 0.94], [0, 1]);
 
   return (
-    <section ref={sectionRef} className="relative h-[300vh]">
+    <section id="care-journey" ref={sectionRef} className="relative h-[300vh]">
       <div className="sticky top-0 flex h-dvh flex-col justify-center overflow-hidden">
         {/* ambient depth (static — animated blur layers artifact inside sticky) */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
