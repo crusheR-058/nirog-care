@@ -139,6 +139,13 @@ export function Hero() {
         >
         <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 rounded-[3rem] bg-gradient-to-b from-white/60 to-transparent blur-2xl" />
         <ProductWindow />
+        {/* mirror reflection, Apple keynote style */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-full mt-1 h-44 origin-top -scale-y-100 overflow-hidden opacity-[0.14] blur-[1.5px] [mask-image:linear-gradient(to_top,black,transparent_72%)]"
+        >
+          <ProductWindow />
+        </div>
 
         <Chip className="-left-8 top-16" delay={0.7}>
           <p className="flex items-center gap-1.5 text-xs font-semibold text-aria">

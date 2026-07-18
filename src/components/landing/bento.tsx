@@ -12,6 +12,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { WordReveal } from "@/components/landing/word-reveal";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -80,8 +81,7 @@ export function Bento() {
             One platform
           </span>
           <h2 className="mt-5 font-display text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-            <span className="text-ink">Every step of care,</span>{" "}
-            <span className="text-ink-faint">engineered.</span>
+            <WordReveal text="Every step of care, engineered." faintFrom={4} />
           </h2>
           <p className="mt-4 text-lg text-ink-soft">
             From the first spoken symptom to a signed, audited care plan — a

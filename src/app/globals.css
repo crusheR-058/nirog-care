@@ -259,7 +259,8 @@
     font-weight: 800;
     line-height: 0.8;
     letter-spacing: -0.04em;
-    color: color-mix(in srgb, var(--ink) 5%, transparent);
+    /* direct alpha — color-mix() was dropped by the CSS minifier */
+    color: rgb(23 26 33 / 0.06);
     user-select: none;
   }
   .marquee-track {

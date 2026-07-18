@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform, useSpring } from "motion/react";
+import { WordReveal } from "@/components/landing/word-reveal";
 import {
   Mic,
   Stethoscope,
@@ -220,8 +221,7 @@ export function CareLoop() {
             The care loop
           </span>
           <h2 className="mt-4 font-display text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-            <span className="text-ink">Every interaction,</span>{" "}
-            <span className="text-ink-faint">one episode.</span>
+            <WordReveal text="Every interaction, one episode." faintFrom={2} />
           </h2>
         </motion.div>
 
