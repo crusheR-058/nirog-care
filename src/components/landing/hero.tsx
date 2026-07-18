@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
-import { ArrowRight, Play, Sparkles, ShieldCheck, Globe2, Radio } from "lucide-react";
+import { ArrowRight, Sparkles, ShieldCheck, Globe2, Radio } from "lucide-react";
 import { HeroVisual } from "@/components/landing/hero-visual";
 import { Magnetic, EASE } from "@/components/landing/shared";
 
@@ -92,17 +92,6 @@ export function Hero() {
                 Start Consultation
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
-            </Magnetic>
-            <Magnetic>
-              <a
-                href="#world"
-                className="inline-flex h-13 items-center gap-2 rounded-full bg-white px-7 text-[15px] font-semibold text-ink shadow-quiet transition-all hover:shadow-lift active:scale-[0.97]"
-              >
-                <span className="grid size-6 place-items-center rounded-full bg-soft-blue text-blue">
-                  <Play className="size-3 fill-current" />
-                </span>
-                Watch the journey
-              </a>
             </Magnetic>
           </motion.div>
 
