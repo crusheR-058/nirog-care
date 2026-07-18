@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   motion,
   useScroll,
   useTransform,
   useSpring,
+  useMotionValueEvent,
   type MotionValue,
 } from "motion/react";
 import {
@@ -15,6 +16,7 @@ import {
   CarePlanDiorama,
   ContinuityDiorama,
 } from "@/components/landing/dioramas";
+import { cn } from "@/lib/utils";
 
 interface Scene {
   id: string;
@@ -86,6 +88,20 @@ const SCENES: Scene[] = [
   },
 ];
 
+const chipVariants = {
+  hidden: { opacity: 0, y: 14, scale: 0.92 },
+  show: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.45,
+      ease: [0.22, 1, 0.36, 1] as const,
+      delay: 0.1 + i * 0.09,
+    },
+  }),
+};
+
 function SceneStage({
   scene,
   index,
@@ -106,19 +122,37 @@ function SceneStage({
     restDelta: 0.001,
   });
 
-  // Camera dive — compact: reaches focus fast and holds for most of the scene,
-  // so each scene reads within roughly one screen of scrolling.
-  const scale = useTransform(p, [0, 0.4, 0.68, 1], [0.86, 1, 1, 1.08]);
-  const opacity = useTransform(p, [0, 0.14, 0.82, 1], [0, 1, 1, 0]);
-  const blur = useTransform(p, [0, 0.28, 0.74, 1], [6, 0, 0, 6]);
-  const filter = useTransform(blur, (b) => `blur(${b}px)`);
-  const y = useTransform(p, [0, 0.4, 1], [42, 0, -30]);
-
-  // Copy slides in slightly out of phase with the diorama.
-  const copyY = useTransform(p, [0.08, 0.4, 0.9], [30, 0, -24]);
-  const copyOpacity = useTransform(p, [0.08, 0.26, 0.8, 0.96], [0, 1, 1, 0]);
-
   const isEven = index % 2 === 0;
+  const dir = isEven ? 1 : -1;
+
+  // Camera dive — reaches focus fast, holds, then flies past.
+  const scale = useTransform(p, [0, 0.4, 0.68, 1], [0.84, 1, 1, 1.1]);
+  const opacity = useTransform(p, [0, 0.14, 0.82, 1], [0, 1, 1, 0]);
+  const blur = useTransform(p, [0, 0.28, 0.74, 1], [7, 0, 0, 7]);
+  const filter = useTransform(blur, (b) => `blur(${b}px)`);
+  const y = useTransform(p, [0, 0.4, 1], [48, 0, -36]);
+  // Diorama glides in from its side and tilts as it passes.
+  const dioramaX = useTransform(p, [0, 0.42, 1], [110 * dir, 0, -60 * dir]);
+  const rotate = useTransform(p, [0, 0.42, 1], [5 * dir, 0, -3.5 * dir]);
+
+  // Copy slides in from the opposite side, out of phase.
+  const copyX = useTransform(p, [0.06, 0.4, 1], [-90 * dir, 0, 30 * dir]);
+  const copyY = useTransform(p, [0.08, 0.4, 0.9], [26, 0, -20]);
+  const copyOpacity = useTransform(p, [0.08, 0.28, 0.8, 0.96], [0, 1, 1, 0]);
+
+  // Ghost number drifts on its own plane (parallax) and fades at the seams.
+  const ghostY = useTransform(p, [0, 1], ["12%", "-14%"]);
+  const ghostOpacity = useTransform(p, [0.05, 0.35, 0.75, 0.98], [0, 1, 1, 0]);
+
+  // Orbit rings counter-rotate subtly for depth.
+  const ringRotate = useTransform(p, [0, 1], [-14 * dir, 14 * dir]);
+  const ringRotateInv = useTransform(ringRotate, (r) => -r);
+  const underline = useTransform(p, [0.22, 0.5], [0, 1]);
+
+  // Stagger the tag chips only while the scene is in focus.
+  const [active, setActive] = useState(false);
+  useMotionValueEvent(p, "change", (v) => setActive(v > 0.24 && v < 0.9));
+
   const Diorama = scene.Diorama;
 
   return (
@@ -128,23 +162,24 @@ function SceneStage({
       aria-labelledby={`scene-${scene.id}`}
     >
       <div className="sticky top-0 flex h-dvh items-center overflow-hidden">
-        {/* giant ghost number for depth */}
-        <span
-          className="ghost-number pointer-events-none absolute select-none text-[42vh] sm:text-[56vh]"
+        {/* giant ghost number — parallax layer */}
+        <motion.span
+          className="ghost-number pointer-events-none absolute top-1/2 select-none text-[42vh] sm:text-[56vh]"
           style={{
             [isEven ? "right" : "left"]: "-2%",
-            top: "50%",
-            transform: "translateY(-50%)",
+            y: ghostY,
+            opacity: ghostOpacity,
+            translateY: "-50%",
           }}
           aria-hidden
         >
           {scene.no}
-        </span>
+        </motion.span>
 
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-6 px-6 lg:grid-cols-2 lg:gap-12">
           {/* Copy */}
           <motion.div
-            style={{ y: copyY, opacity: copyOpacity }}
+            style={{ x: copyX, y: copyY, opacity: copyOpacity }}
             className={isEven ? "lg:order-1" : "lg:order-2"}
           >
             {/* App-style chip pair: black number pill + white eyebrow chip */}
@@ -168,24 +203,33 @@ function SceneStage({
             >
               {scene.title}
             </h2>
-            <p className="mt-5 max-w-md text-base leading-relaxed text-ink-soft">
+            {/* accent underline that draws with the scene */}
+            <motion.div
+              className="mt-4 h-1 w-24 origin-left rounded-full"
+              style={{ background: scene.accent, scaleX: underline }}
+            />
+            <p className="mt-4 max-w-md text-base leading-relaxed text-ink-soft">
               {scene.body}
             </p>
             <div className="mt-7 flex flex-wrap gap-2">
-              {scene.tags.map((t) => (
-                <span
+              {scene.tags.map((t, i) => (
+                <motion.span
                   key={t}
+                  custom={i}
+                  variants={chipVariants}
+                  initial="hidden"
+                  animate={active ? "show" : "hidden"}
                   className="rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-ink-soft shadow-quiet backdrop-blur"
                 >
                   {t}
-                </span>
+                </motion.span>
               ))}
             </div>
           </motion.div>
 
           {/* Diorama stage */}
           <motion.div
-            style={{ scale, opacity, filter, y }}
+            style={{ scale, opacity, filter, y, x: dioramaX, rotate }}
             className={`relative mx-auto aspect-square w-full max-w-[500px] ${
               isEven ? "lg:order-2" : "lg:order-1"
             }`}
@@ -199,9 +243,20 @@ function SceneStage({
               className="absolute inset-[26%] rounded-full opacity-20 blur-2xl"
               style={{ background: scene.accent }}
             />
-            {/* soft orbit ring */}
-            <div className="absolute inset-[4%] rounded-full border border-white/50" />
-            <div className="absolute inset-[16%] rounded-full border border-dashed border-white/40" />
+            {/* counter-rotating orbit rings */}
+            <motion.div
+              className="absolute inset-[4%] rounded-full border border-white/50"
+              style={{ rotate: ringRotate }}
+            >
+              <span
+                className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full"
+                style={{ background: scene.accent }}
+              />
+            </motion.div>
+            <motion.div
+              className="absolute inset-[16%] rounded-full border border-dashed border-white/40"
+              style={{ rotate: ringRotateInv }}
+            />
             <Diorama />
           </motion.div>
         </div>
@@ -227,6 +282,48 @@ function Atmosphere({ progress }: { progress: MotionValue<number> }) {
   );
 }
 
+/** Fixed rail showing where you are in the flight; visible only mid-journey. */
+function ProgressRail({ progress }: { progress: MotionValue<number> }) {
+  const [idx, setIdx] = useState(0);
+  const [visible, setVisible] = useState(false);
+  useMotionValueEvent(progress, "change", (v) => {
+    setVisible(v > 0.005 && v < 0.995);
+    setIdx(Math.min(SCENES.length - 1, Math.max(0, Math.floor(v * SCENES.length))));
+  });
+
+  return (
+    <div
+      className={cn(
+        "fixed right-6 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-end gap-3.5 transition-opacity duration-500 lg:flex",
+        visible ? "opacity-100" : "pointer-events-none opacity-0"
+      )}
+      aria-hidden
+    >
+      {SCENES.map((s, i) => (
+        <div key={s.id} className="flex items-center gap-2.5">
+          <span
+            className={cn(
+              "rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider shadow-quiet backdrop-blur transition-all duration-300",
+              i === idx ? "translate-x-0 opacity-100" : "translate-x-2 opacity-0"
+            )}
+            style={{ color: s.accent }}
+          >
+            {s.eyebrow}
+          </span>
+          <span
+            className="rounded-full transition-all duration-300"
+            style={{
+              width: i === idx ? 10 : 7,
+              height: i === idx ? 10 : 7,
+              background: i === idx ? s.accent : "color-mix(in srgb, var(--ink) 18%, transparent)",
+            }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ScrollJourney() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -237,6 +334,7 @@ export function ScrollJourney() {
   return (
     <div id="world" ref={wrapRef} className="relative">
       <Atmosphere progress={scrollYProgress} />
+      <ProgressRail progress={scrollYProgress} />
       {SCENES.map((scene, i) => (
         <SceneStage
           key={scene.id}

@@ -18,17 +18,27 @@ function Reveal({
   children,
   delay = 0,
   className = "",
+  from = "up",
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
+  from?: "up" | "left" | "right" | "scale";
 }) {
+  const initial =
+    from === "left"
+      ? { opacity: 0, x: -56 }
+      : from === "right"
+        ? { opacity: 0, x: 56 }
+        : from === "scale"
+          ? { opacity: 0, scale: 0.93, y: 24 }
+          : { opacity: 0, y: 24 };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={initial}
+      whileInView={{ opacity: 1, x: 0, y: 0, scale: 1 }}
       viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.6, ease, delay }}
+      transition={{ duration: 0.7, ease, delay }}
       className={className}
     >
       {children}
@@ -50,7 +60,7 @@ export function Closing() {
       <section id="trust" className="relative px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <div className="grid items-center gap-10 lg:grid-cols-2">
-            <Reveal>
+            <Reveal from="left">
               <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-green shadow-quiet">
                 Trust architecture
               </span>
@@ -66,12 +76,17 @@ export function Closing() {
               </p>
             </Reveal>
 
-            <Reveal delay={0.1}>
+            <Reveal from="right" delay={0.1}>
               <div className="grid grid-cols-2 gap-4">
-                {pillars.map((p) => (
-                  <div
+                {pillars.map((p, i) => (
+                  <motion.div
                     key={p.title}
-                    className="rounded-[1.5rem] bg-white p-5 shadow-quiet"
+                    initial={{ opacity: 0, y: 24 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.55, ease, delay: 0.15 + i * 0.09 }}
+                    whileHover={{ y: -5 }}
+                    className="rounded-[1.5rem] bg-white p-5 shadow-quiet transition-shadow hover:shadow-lift"
                   >
                     <span className="grid size-10 place-items-center rounded-xl bg-soft-green text-green">
                       <p.icon className="size-5" />
@@ -82,7 +97,7 @@ export function Closing() {
                     <p className="mt-1 text-xs leading-relaxed text-ink-soft">
                       {p.body}
                     </p>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </Reveal>
@@ -93,7 +108,7 @@ export function Closing() {
       {/* Final CTA */}
       <section className="relative px-6 pb-24">
         <div className="mx-auto max-w-5xl">
-          <Reveal>
+          <Reveal from="scale">
             <div className="relative overflow-hidden rounded-[2.5rem] bg-ink px-8 py-20 text-center text-white sm:px-16">
               <div className="pointer-events-none absolute -left-16 -top-16 size-80 rounded-full bg-blue/30 blur-3xl" />
               <div className="pointer-events-none absolute -bottom-24 -right-10 size-80 rounded-full bg-aria/25 blur-3xl" />

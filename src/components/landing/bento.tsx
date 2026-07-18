@@ -18,18 +18,23 @@ const ease = [0.22, 1, 0.36, 1] as const;
 function Card({
   className,
   delay = 0,
+  from = "up",
   children,
 }: {
   className?: string;
   delay?: number;
+  from?: "up" | "left" | "right";
   children: React.ReactNode;
 }) {
+  const offset =
+    from === "left" ? { x: -56, y: 0 } : from === "right" ? { x: 56, y: 0 } : { x: 0, y: 34 };
   return (
     <motion.div
-      initial={{ opacity: 0, y: 26 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, ...offset }}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.6, ease, delay }}
+      transition={{ duration: 0.65, ease, delay }}
+      whileHover={{ y: -6, transition: { type: "spring", stiffness: 300, damping: 22 } }}
       className={cn(
         "group relative overflow-hidden rounded-[1.75rem] bg-white p-6 shadow-quiet transition-shadow hover:shadow-lift",
         className
@@ -48,7 +53,9 @@ function IconBadge({
   children: React.ReactNode;
 }) {
   return (
-    <span className={`grid size-11 place-items-center rounded-2xl ${tone}`}>
+    <span
+      className={`grid size-11 place-items-center rounded-2xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-110 ${tone}`}
+    >
       {children}
     </span>
   );
@@ -56,7 +63,11 @@ function IconBadge({
 
 export function Bento() {
   return (
-    <section id="workspace" className="relative px-6 py-24">
+    <section id="workspace" className="relative overflow-hidden px-6 py-24">
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="aurora-blob left-[4%] top-[16%] size-[340px] bg-blue/12" />
+        <div className="aurora-blob right-[6%] bottom-[8%] size-[380px] bg-aria/12" style={{ animationDelay: "-11s" }} />
+      </div>
       <div className="mx-auto max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -80,7 +91,7 @@ export function Bento() {
 
         <div className="mt-12 grid auto-rows-[minmax(0,1fr)] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Featured — ARIA (spans 2 cols) */}
-          <Card className="sm:col-span-2 lg:row-span-2" delay={0}>
+          <Card className="sm:col-span-2 lg:row-span-2" delay={0} from="left">
             <div className="pointer-events-none absolute -right-16 -top-16 size-56 rounded-full bg-soft-purple blur-2xl" />
             <IconBadge tone="bg-soft-purple text-aria">
               <Mic className="size-5" />
@@ -115,7 +126,7 @@ export function Bento() {
           </Card>
 
           {/* Realtime queue */}
-          <Card delay={0.06}>
+          <Card delay={0.06} from="right">
             <IconBadge tone="bg-soft-green text-green">
               <Radio className="size-5" />
             </IconBadge>
@@ -136,7 +147,7 @@ export function Bento() {
           </Card>
 
           {/* Consult */}
-          <Card delay={0.12}>
+          <Card delay={0.12} from="right">
             <IconBadge tone="bg-soft-blue text-blue">
               <Video className="size-5" />
             </IconBadge>
@@ -150,7 +161,7 @@ export function Bento() {
           </Card>
 
           {/* Security (spans 2) */}
-          <Card className="sm:col-span-2" delay={0.06}>
+          <Card className="sm:col-span-2" delay={0.06} from="left">
             <div className="flex flex-wrap items-start justify-between gap-6">
               <div className="max-w-sm">
                 <IconBadge tone="bg-soft-blue text-blue">
@@ -176,7 +187,7 @@ export function Bento() {
           </Card>
 
           {/* Global */}
-          <Card delay={0.12}>
+          <Card delay={0.12} from="right">
             <IconBadge tone="bg-soft-amber text-amber">
               <Globe2 className="size-5" />
             </IconBadge>
@@ -190,7 +201,7 @@ export function Bento() {
           </Card>
 
           {/* MFA */}
-          <Card delay={0.18}>
+          <Card delay={0.18} from="left">
             <IconBadge tone="bg-soft-indigo text-indigo">
               <KeyRound className="size-5" />
             </IconBadge>
@@ -204,7 +215,7 @@ export function Bento() {
           </Card>
 
           {/* small accent */}
-          <Card delay={0.24} className="bg-ink text-white">
+          <Card delay={0.24} from="right" className="bg-ink text-white">
             <IconBadge tone="bg-white/10 text-lblue">
               <Sparkles className="size-5" />
             </IconBadge>

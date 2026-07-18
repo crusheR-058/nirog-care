@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
+import { useRef } from "react";
+import { motion, useScroll, useTransform } from "motion/react";
 import {
   ArrowRight,
   ChevronDown,
@@ -39,8 +40,21 @@ function Chip({
 }
 
 export function Hero() {
+  const ref = useRef<HTMLElement>(null);
+  // As the visitor scrolls away, the product window recedes in 3D.
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start start", "end start"],
+  });
+  const winY = useTransform(scrollYProgress, [0, 1], [0, 110]);
+  const winRotateX = useTransform(scrollYProgress, [0, 1], [0, 14]);
+  const winScale = useTransform(scrollYProgress, [0, 1], [1, 0.9]);
+  const winOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.25]);
+  const copyY = useTransform(scrollYProgress, [0, 1], [0, -60]);
+  const copyOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
+
   return (
-    <section className="relative overflow-hidden px-6 pb-16 pt-32 sm:pt-36">
+    <section ref={ref} className="relative overflow-hidden px-6 pb-16 pt-32 sm:pt-36">
       {/* aurora + texture */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="aurora-blob left-[8%] top-[6%] size-[380px] bg-blue/25" />
@@ -50,7 +64,7 @@ export function Hero() {
       <div className="grain pointer-events-none absolute inset-0 -z-10" />
       <div className="pointer-events-none absolute inset-0 -z-10 grid-dots opacity-[0.35] [mask-image:radial-gradient(70%_55%_at_50%_30%,#000_10%,transparent_75%)]" />
 
-      <div className="mx-auto max-w-3xl text-center">
+      <motion.div style={{ y: copyY, opacity: copyOpacity }} className="mx-auto max-w-3xl text-center">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -110,15 +124,19 @@ export function Hero() {
             Explore the platform
           </a>
         </motion.div>
-      </div>
+      </motion.div>
 
-      {/* product window with floating chips */}
+      {/* product window with floating chips — recedes in 3D on scroll */}
       <motion.div
         initial={{ opacity: 0, y: 40, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.9, ease, delay: 0.32 }}
         className="relative mx-auto mt-16 max-w-2xl"
+        style={{ perspective: 1400 }}
       >
+        <motion.div
+          style={{ y: winY, scale: winScale, opacity: winOpacity, rotateX: winRotateX, transformStyle: "preserve-3d" }}
+        >
         <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 rounded-[3rem] bg-gradient-to-b from-white/60 to-transparent blur-2xl" />
         <ProductWindow />
 
@@ -143,6 +161,7 @@ export function Hero() {
             <CheckCircle2 className="size-3.5 text-green" /> Care filed
           </p>
         </Chip>
+        </motion.div>
       </motion.div>
 
       {/* trust strip */}
