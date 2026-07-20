@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { motion, useScroll, useTransform, useSpring } from "motion/react";
-import { useIsMobile } from "@/components/landing/shared";
+import { useRef } from "react";
+import { motion, useScroll, useSpring } from "motion/react";
 import { WordReveal } from "@/components/landing/word-reveal";
 import {
   Mic,
@@ -15,12 +14,13 @@ import {
   BellRing,
   TriangleAlert,
   CheckCircle2,
-  ArrowRight,
   CalendarClock,
   Truck,
+  RefreshCw,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const ease = [0.22, 1, 0.36, 1] as const;
+const EASE = [0.22, 1, 0.36, 1] as const;
 
 interface Step {
   icon: typeof Mic;
@@ -147,78 +147,106 @@ const STEPS: Step[] = [
   },
 ];
 
-function StepCard({ step, index }: { step: Step; index: number }) {
+/** One branch of the tree: node on the trunk, branch line, then the card. */
+function TreeStep({ step, index }: { step: Step; index: number }) {
+  const left = index % 2 === 0; // desktop: cards alternate sides of the trunk
   const Icon = step.icon;
-  return (
-    <div className="relative flex w-[76vw] max-w-[360px] shrink-0 flex-col overflow-hidden rounded-[1.75rem] bg-white p-5 shadow-quiet transition-shadow hover:shadow-lift sm:w-[360px] sm:p-7">
-      {/* accent top bar + ghost number */}
-      <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: step.bar }} />
-      <span className="ghost-number pointer-events-none absolute -right-2 -top-4 text-[7.5rem]">
-        0{index + 1}
-      </span>
 
-      <span className={`grid size-14 place-items-center rounded-2xl ${step.tone}`}>
-        <Icon className="size-6" />
-      </span>
-      <h3 className="mt-5 font-display text-2xl font-extrabold text-ink">
-        {step.title}
-      </h3>
-      <p className="mt-2 min-h-16 text-sm leading-relaxed text-ink-soft">
-        {step.desc}
-      </p>
-      <div className="mt-auto pt-4">{step.visual}</div>
+  return (
+    <div className="relative grid grid-cols-[44px_minmax(0,1fr)] items-start sm:grid-cols-2">
+      {/* node — pops onto the trunk as it reaches this step */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        whileInView={{ scale: 1, opacity: 1 }}
+        viewport={{ once: true, margin: "0px 0px -110px 0px" }}
+        transition={{ type: "spring", stiffness: 320, damping: 20 }}
+        className="absolute left-[22px] top-7 z-10 -translate-x-1/2 sm:left-1/2"
+      >
+        <span className={cn("grid size-11 place-items-center rounded-full shadow-quiet ring-4 ring-canvas", step.tone)}>
+          <Icon className="size-5" />
+        </span>
+        <span
+          className="absolute -right-1 -top-1 grid size-4.5 place-items-center rounded-full text-[9px] font-bold text-white"
+          style={{ background: step.bar }}
+        >
+          {index + 1}
+        </span>
+      </motion.div>
+
+      {/* branch line — draws outward from the trunk toward the card (desktop) */}
+      <motion.span
+        aria-hidden
+        initial={{ scaleX: 0 }}
+        whileInView={{ scaleX: 1 }}
+        viewport={{ once: true, margin: "0px 0px -110px 0px" }}
+        transition={{ duration: 0.5, ease: EASE, delay: 0.15 }}
+        className={cn(
+          "absolute top-[49px] hidden h-[2px] w-12 sm:block",
+          left ? "right-1/2 mr-6 origin-right" : "left-1/2 ml-6 origin-left"
+        )}
+        style={{ background: step.bar, opacity: 0.5 }}
+      />
+
+      {/* card — grows in from its branch side */}
+      <motion.div
+        initial={{ opacity: 0, x: left ? -40 : 40, y: 18 }}
+        whileInView={{ opacity: 1, x: 0, y: 0 }}
+        viewport={{ once: true, margin: "0px 0px -90px 0px" }}
+        transition={{ duration: 0.65, ease: EASE, delay: 0.1 }}
+        whileHover={{ y: -5 }}
+        className={cn(
+          "col-start-2 w-full sm:max-w-[25rem]",
+          left
+            ? "sm:col-start-1 sm:justify-self-end sm:pr-[4.5rem]"
+            : "sm:col-start-2 sm:justify-self-start sm:pl-[4.5rem]"
+        )}
+      >
+        <div className="relative overflow-hidden rounded-[1.5rem] bg-white p-5 shadow-quiet transition-shadow hover:shadow-lift sm:p-6">
+          <span className="absolute inset-x-0 top-0 h-1.5" style={{ background: step.bar }} />
+          <span className="ghost-number pointer-events-none absolute -right-2 -top-3 text-[5.5rem]">
+            0{index + 1}
+          </span>
+          <h3 className="font-display text-xl font-extrabold text-ink sm:text-2xl">
+            {step.title}
+          </h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{step.desc}</p>
+          <div className="mt-4">{step.visual}</div>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
 /**
- * Pinned horizontal journey: the section pins on screen and vertical scroll
- * drives the row of steps right → left, revealing each stage from the right.
+ * The care loop as a scroll-animation tree: a central trunk draws itself down
+ * the page as you scroll, and each stage branches off it — node popping onto
+ * the trunk, branch line extending, card growing in from its side. The last
+ * node loops back, because that's the point.
  */
 export function CareLoop() {
-  const sectionRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const [shift, setShift] = useState(0);
-
-  useEffect(() => {
-    const measure = () => {
-      if (!trackRef.current || !viewportRef.current) return;
-      setShift(
-        Math.max(0, trackRef.current.scrollWidth - viewportRef.current.clientWidth)
-      );
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-
-  const mobile = useIsMobile();
+  const treeRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start start", "end end"],
+    target: treeRef,
+    offset: ["start 72%", "end 70%"],
   });
-  const sprung = useSpring(scrollYProgress, { stiffness: 100, damping: 27, restDelta: 0.001 });
-  const p = mobile ? scrollYProgress : sprung;
-  const x = useTransform(p, [0.06, 0.94], [0, -shift]);
-  const lineScale = useTransform(p, [0.06, 0.94], [0, 1]);
+  const trunk = useSpring(scrollYProgress, { stiffness: 90, damping: 26, restDelta: 0.001 });
 
   return (
-    <section id="care-journey" ref={sectionRef} className="relative h-[300vh]">
-      <div className="sticky top-0 flex h-svh flex-col justify-center overflow-hidden">
-        {/* ambient depth (static — animated blur layers artifact inside sticky) */}
-        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute -left-24 top-[10%] size-[340px] rounded-full bg-aria/10 blur-[90px]" />
-          <div className="absolute -right-24 bottom-[6%] size-[380px] rounded-full bg-green/10 blur-[90px]" />
-        </div>
+    <section id="care-journey" className="relative overflow-hidden px-6 py-28">
+      {/* ambient depth */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+        <div className="absolute -left-24 top-[12%] size-[340px] rounded-full bg-aria/10 blur-[90px]" />
+        <div className="absolute -right-24 bottom-[8%] size-[380px] rounded-full bg-green/10 blur-[90px]" />
+      </div>
 
+      <div className="mx-auto max-w-5xl">
         {/* header */}
         <motion.div
           initial={{ opacity: 0, y: 26 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.7, ease }}
-          className="mx-auto max-w-2xl px-6 text-center"
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="mx-auto max-w-2xl text-center"
         >
           <span className="inline-flex rounded-full bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-green shadow-quiet">
             The care loop
@@ -226,39 +254,50 @@ export function CareLoop() {
           <h2 className="mt-4 font-display text-3xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
             <WordReveal text="Every interaction, one episode." faintFrom={2} />
           </h2>
+          <p className="mt-4 text-lg text-ink-soft">
+            The north-star isn&rsquo;t logins or AI messages — it&rsquo;s resolved
+            care episodes that close the loop and come back as follow-up.
+          </p>
         </motion.div>
 
-        {/* horizontal track — driven by vertical scroll */}
-        <div ref={viewportRef} className="relative mt-10 w-full overflow-hidden">
+        {/* the tree */}
+        <div ref={treeRef} className="relative mt-16">
+          {/* trunk rail + the growing line */}
+          <div className="absolute bottom-0 left-[22px] top-0 w-px -translate-x-1/2 bg-ink/10 sm:left-1/2" />
           <motion.div
-            ref={trackRef}
-            style={{ x }}
-            className="flex w-max items-stretch gap-4 pl-6 pr-[14vw] lg:pl-[max(1.5rem,calc((100vw-72rem)/2))]"
-          >
-            {STEPS.map((s, i) => (
-              <div key={s.title} className="flex items-center gap-4">
-                <StepCard step={s} index={i} />
-                {i < STEPS.length - 1 && (
-                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/80 text-ink-faint shadow-quiet backdrop-blur">
-                    <ArrowRight className="size-4" />
-                  </span>
-                )}
-              </div>
-            ))}
-          </motion.div>
-        </div>
+            aria-hidden
+            style={{ scaleY: trunk }}
+            className="absolute bottom-0 left-[22px] top-0 w-[3px] -translate-x-1/2 origin-top rounded-full bg-gradient-to-b from-aria via-green to-red sm:left-1/2"
+          />
 
-        {/* progress + hint */}
-        <div className="mx-auto mt-10 flex flex-col items-center gap-2 px-6">
-          <div className="h-1.5 w-44 overflow-hidden rounded-full bg-white/70 shadow-quiet">
-            <motion.div
-              className="h-full w-full origin-left rounded-full bg-gradient-to-r from-aria via-green to-red"
-              style={{ scaleX: lineScale }}
-            />
+          <div className="flex flex-col gap-10 sm:gap-4">
+            {STEPS.map((s, i) => (
+              <TreeStep key={s.title} step={s} index={i} />
+            ))}
           </div>
-          <p className="text-xs font-semibold text-ink-faint">
-            Keep scrolling — the loop unfolds →
-          </p>
+
+          {/* the loop closes */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.7 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true, margin: "0px 0px -60px 0px" }}
+            transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.1 }}
+            className="relative mt-10 flex justify-start pl-[3px] sm:justify-center sm:pl-0"
+          >
+            <div className="flex items-center gap-3 rounded-full bg-white py-2 pl-2.5 pr-5 shadow-quiet">
+              <motion.span
+                animate={{ rotate: 360 }}
+                transition={{ duration: 9, repeat: Infinity, ease: "linear" }}
+                className="grid size-9 place-items-center rounded-full bg-soft-green text-green"
+              >
+                <RefreshCw className="size-4.5" />
+              </motion.span>
+              <p className="text-sm font-semibold text-ink">
+                The loop closes —{" "}
+                <span className="text-ink-faint">and care continues.</span>
+              </p>
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
