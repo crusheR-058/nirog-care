@@ -1,4 +1,5 @@
 import { MarketingNav } from "@/components/landing/marketing-nav";
+import { IntroGate } from "@/components/landing/intro-gate";
 import { Hero } from "@/components/landing/hero";
 import { CareLoop } from "@/components/landing/care-loop";
 import { ScrollJourney } from "@/components/landing/scroll-journey";
@@ -10,12 +11,14 @@ export default function LandingPage() {
     <div className="landing-theme relative min-h-dvh">
       {/* Patient-app periwinkle canvas, beneath the journey's scene skies */}
       <div aria-hidden className="fixed inset-0 -z-20 bg-[#d9e5f6]" />
-      <MarketingNav />
-      <Hero />
-      <CareLoop />
-      <ScrollJourney />
-      <Features />
-      <Closing />
+      <IntroGate>
+        <MarketingNav />
+        <Hero />
+        <CareLoop />
+        <ScrollJourney />
+        <Features />
+        <Closing />
+      </IntroGate>
 
       {/* Crawlable copy mirror for SEO / no-JS (the journey renders client-side). */}
       <div className="sr-only">
