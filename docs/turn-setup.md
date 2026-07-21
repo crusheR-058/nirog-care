@@ -44,27 +44,33 @@ can never disagree about which relay to use.
 
 ---
 
-## Option A — managed (fastest, recommended to start)
+## Option A — Metered.ca free tier (chosen)
 
-No server to run. Use a hosted TURN provider such as **metered.ca** (free tier
-around 50 GB/month) or **Twilio Network Traversal**.
+No server to run. Free tier is ~50 GB/month with no card, which covers roughly
+250 fully-relayed consultations.
 
-Set these on Vercel (Production **and** Preview):
+1. Sign up at **metered.ca** → **TURN Server** in the dashboard.
+2. Copy the **username**, **credential**, and your subdomain's TURN URLs.
+3. Run the setup script — it proves the relay works *before* saving anything:
 
+```bash
+node scripts/setup-turn.mjs \
+  --urls "turn:<subdomain>.relay.metered.ca:80,turn:<subdomain>.relay.metered.ca:443" \
+  --username "<username>" \
+  --credential "<credential>" \
+  --write-env --push-vercel
 ```
-TURN_URLS=turn:<host>:3478,turns:<host>:5349
-TURN_USERNAME=<provider username>
-TURN_CREDENTIAL=<provider credential>
-```
 
-`/api/ice` will report `provider: "static"`. Credentials are long-lived, which
-is weaker than Option B, but vastly better than no relay.
+`/api/ice` will then report `provider: "static"`.
 
-> Note the names have **no `NEXT_PUBLIC_` prefix** — that is deliberate. These
-> must stay server-side. Anything `NEXT_PUBLIC_` is compiled into the browser
-> bundle and is effectively public.
+> ⚠️ **Do not use the old "Open Relay" free public servers**
+> (`openrelay.metered.ca` / `staticauth.openrelay.metered.ca`). That project has
+> been retired — probing every endpoint returns `host` candidates only, never a
+> `relay`. Anything still recommending it is out of date.
 
----
+> The env keys have **no `NEXT_PUBLIC_` prefix** deliberately. These must stay
+> server-side; anything `NEXT_PUBLIC_` is compiled into the browser bundle and
+> is effectively public, and TURN egress is billable.
 
 ## Option B — self-hosted coturn (cheapest at scale, ephemeral credentials)
 
@@ -116,6 +122,10 @@ is public. See [`patient-app-reference/lib/useNativeCall.ts`](../patient-app-ref
 ---
 
 ## Verifying it works
+
+`scripts/setup-turn.mjs` does this for you and **refuses to write a config that
+does not produce a relay candidate** — the dangerous state is not "unconfigured"
+but "configured and silently not relaying".
 
 Configuration being present is not proof the relay works. A URL can be set,
 credentials can be wrong, and UDP 3478 can be closed — all three look identical
