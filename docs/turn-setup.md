@@ -1,8 +1,11 @@
 # TURN setup — making video calls actually connect
 
-**Status: the code is ready; no TURN server is configured yet.**
-Until one is, `/api/ice` returns `provider: "none"` and calls are STUN-only —
-which means **they will fail for a large share of real patients.**
+**Status: CONFIGURED and proven (2026-07-22).** `/api/ice` serves the
+Metered.ca relay (`provider: "static"`, four transports: udp:80, tcp:80,
+udp:443, tls:443). Verified end to end with a relay-only call on production —
+both peers `iceTransportPolicy: "relay"`, frames flowed, and the nominated
+candidate pair was `type=relay`. Credentials live in `.env` and the Vercel
+project env, never in the repo or the client bundle.
 
 ---
 
