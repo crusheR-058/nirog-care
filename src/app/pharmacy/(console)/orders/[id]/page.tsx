@@ -44,7 +44,7 @@ export default async function OrderDetailPage({
 
       <header className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="tnum font-mono text-xs font-semibold text-cyan">
+          <p className="tnum font-mono text-xs font-semibold text-blue">
             {orderRef(order.id)}
           </p>
           <h1 className="mt-1 font-display text-2xl font-extrabold tracking-tight text-ink">
@@ -111,7 +111,7 @@ export default async function OrderDetailPage({
                         )}
                       </p>
                       {i.atcCode && (
-                        <p className="tnum mt-1 font-mono text-[11px] text-cyan">
+                        <p className="tnum mt-1 font-mono text-[11px] text-blue">
                           ATC {i.atcCode}
                           {i.form ? ` · ${i.form}` : ""}
                         </p>

@@ -15,7 +15,7 @@ export default async function PharmacyOnboardingPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/pharmacy/login");
 
   // Read via the service role: the pharmacy's own RLS would also allow this,
   // but this keeps the page working before any policy is evaluated client-side.

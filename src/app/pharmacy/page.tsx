@@ -138,7 +138,10 @@ export default async function PharmacyLandingPage() {
 
           <p className="mt-4 text-center text-sm text-ink-soft">
             Already partnered?{" "}
-            <Link href="/login" className="font-semibold text-blue hover:underline">
+            <Link
+              href="/pharmacy/login"
+              className="font-semibold text-green hover:underline"
+            >
               Sign in
             </Link>
           </p>

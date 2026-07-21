@@ -1,6 +1,10 @@
-"use client";
-
-import { motion } from "motion/react";
+/**
+ * Shared console primitives.
+ *
+ * Deliberately NOT a client module: these are pure renders, and server pages
+ * pass Lucide icon components as props — which cannot cross the server→client
+ * boundary. Client components can still import from here.
+ */
 import {
   CheckCircle2,
   CircleDashed,
@@ -13,7 +17,6 @@ import {
 import type { OrderStatus } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 
-const ease = [0.22, 1, 0.36, 1] as const;
 
 export const STATUS_STYLE: Record<
   OrderStatus,
@@ -22,9 +25,9 @@ export const STATUS_STYLE: Record<
   routed: {
     label: "Incoming",
     icon: CircleDashed,
-    text: "text-cyan",
-    bg: "bg-soft-cyan",
-    dot: "bg-cyan",
+    text: "text-blue",
+    bg: "bg-soft-blue",
+    dot: "bg-blue",
   },
   accepted: {
     label: "Accepted",
@@ -104,51 +107,6 @@ export function StatusPill({
   );
 }
 
-/** A single metric in the command-centre header row. */
-export function StatTile({
-  label,
-  value,
-  hint,
-  accent = "cyan",
-  index = 0,
-}: {
-  label: string;
-  value: number | string;
-  hint?: string;
-  accent?: "cyan" | "blue" | "amber" | "green" | "aria";
-  index?: number;
-}) {
-  const accents = {
-    cyan: "text-cyan",
-    blue: "text-blue",
-    amber: "text-amber",
-    green: "text-green",
-    aria: "text-aria",
-  } as const;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease, delay: index * 0.06 }}
-      className="relative overflow-hidden rounded-2xl border border-hairline bg-panel p-4"
-    >
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-ink-faint">
-        {label}
-      </p>
-      <p
-        className={cn(
-          "tnum mt-2 font-display text-3xl font-extrabold leading-none",
-          accents[accent]
-        )}
-      >
-        {value}
-      </p>
-      {hint && <p className="mt-1.5 text-xs text-ink-faint">{hint}</p>}
-    </motion.div>
-  );
-}
-
 export function EmptyState({
   icon: Icon,
   title,
@@ -159,12 +117,12 @@ export function EmptyState({
   body: string;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-hairline-strong bg-panel/50 px-6 py-14 text-center">
-      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-panel-2 text-ink-faint">
+    <div className="rounded-2xl border border-dashed border-hairline-strong bg-panel/60 px-6 py-14 text-center">
+      <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-secondary text-ink-faint">
         <Icon className="size-6" />
       </span>
-      <p className="mt-4 font-display text-sm font-bold text-ink">{title}</p>
-      <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-ink-faint">
+      <p className="mt-4 text-sm font-semibold text-ink">{title}</p>
+      <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-ink-soft">
         {body}
       </p>
     </div>

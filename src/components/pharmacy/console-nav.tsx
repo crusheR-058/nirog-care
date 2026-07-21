@@ -47,7 +47,7 @@ export function ConsoleRail() {
             className={cn(
               "group relative grid size-11 place-items-center rounded-2xl transition-colors",
               active
-                ? "bg-cyan text-[#05080f]"
+                ? "bg-blue text-white"
                 : "text-ink-faint hover:bg-white/5 hover:text-ink"
             )}
           >
@@ -76,7 +76,7 @@ export function ConsoleMobileNav() {
             aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition-colors",
-              active ? "text-cyan" : "text-ink-faint"
+              active ? "text-blue" : "text-ink-faint"
             )}
           >
             <Icon className="size-5" />

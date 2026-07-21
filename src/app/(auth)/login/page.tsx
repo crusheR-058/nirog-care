@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth/destination";
 import { Logo } from "@/components/brand/logo";
 import { LoginForm } from "./login-form";
 
@@ -24,7 +25,8 @@ export default async function LoginPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (user) redirect("/portal");
+  // Already signed in → their own product, not always the portal.
+  if (user) redirect(await destinationFor(user.id));
 
   return (
     <main className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
@@ -96,6 +98,16 @@ export default async function LoginPage() {
           </p>
 
           <p className="mt-4 text-center text-xs text-ink-faint">
+            Partner pharmacy?{" "}
+            <Link
+              href="/pharmacy/login"
+              className="font-medium text-ink-soft hover:text-ink hover:underline"
+            >
+              Pharmacy sign in
+            </Link>
+          </p>
+
+          <p className="mt-2 text-center text-xs text-ink-faint">
             Patient?{" "}
             <span className="text-ink-soft">
               Care continues in the Nirog mobile app.

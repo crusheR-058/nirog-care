@@ -44,7 +44,7 @@ export default async function OrdersPage({
             href={`/pharmacy/orders?filter=${f.key}`}
             className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
               f.key === active.key
-                ? "bg-cyan text-[#05080f]"
+                ? "bg-blue text-white"
                 : "border border-hairline bg-panel text-ink-soft hover:text-ink"
             }`}
           >
@@ -84,7 +84,7 @@ export default async function OrdersPage({
                   <td className="px-4 py-3">
                     <Link
                       href={`/pharmacy/orders/${o.id}`}
-                      className="tnum font-mono text-xs font-semibold text-cyan hover:underline"
+                      className="tnum font-mono text-xs font-semibold text-blue hover:underline"
                     >
                       {orderRef(o.id)}
                     </Link>

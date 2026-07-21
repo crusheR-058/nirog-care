@@ -57,7 +57,7 @@ export default async function CatalogPage({
   return (
     <div className="mx-auto max-w-6xl">
       <header className="mb-5">
-        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-cyan">
+        <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue">
           <Globe2 className="size-3.5" /> WHO ATC/DDD classification
         </p>
         <h1 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
@@ -81,7 +81,7 @@ export default async function CatalogPage({
           href={href({ group: "all", page: 1 })}
           className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
             !group
-              ? "bg-cyan text-[#05080f]"
+              ? "bg-blue text-white"
               : "border border-hairline bg-panel text-ink-soft hover:text-ink"
           }`}
         >
@@ -94,7 +94,7 @@ export default async function CatalogPage({
             title={g.label}
             className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
               group === g.code
-                ? "bg-cyan text-[#05080f]"
+                ? "bg-blue text-white"
                 : "border border-hairline bg-panel text-ink-soft hover:text-ink"
             }`}
           >
@@ -132,7 +132,7 @@ export default async function CatalogPage({
                 <h2 className="font-display text-sm font-bold capitalize leading-snug text-ink">
                   {d.name}
                 </h2>
-                <span className="tnum shrink-0 rounded-md bg-soft-cyan px-1.5 py-0.5 font-mono text-[10px] font-semibold text-cyan">
+                <span className="tnum shrink-0 rounded-md bg-soft-blue px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue">
                   {d.atcCode}
                 </span>
               </div>

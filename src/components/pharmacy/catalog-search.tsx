@@ -46,7 +46,7 @@ export function CatalogSearch({
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search 5,154 substances — name, ATC code or class…"
         aria-label="Search the drug catalogue"
-        className="h-12 w-full rounded-2xl border border-hairline bg-panel pl-10 pr-20 text-sm text-ink placeholder:text-ink-faint focus:border-hairline-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--cyan)]"
+        className="h-12 w-full rounded-2xl border border-hairline bg-panel pl-10 pr-20 text-sm text-ink placeholder:text-ink-faint focus:border-hairline-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--blue)]"
       />
       <div className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
         {pending && <Loader2 className="size-4 animate-spin text-ink-faint" />}

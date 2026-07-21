@@ -185,7 +185,7 @@ export function FulfilmentPanel({ order }: { order: PharmacyOrderView }) {
             <Button
               onClick={() => run("accepted")}
               disabled={pending}
-              className="bg-cyan text-[#05080f] hover:bg-cyan/90"
+              className="bg-blue text-white hover:bg-blue-press"
             >
               {pending && <Loader2 className="size-4 animate-spin" />}
               Accept order
@@ -196,7 +196,7 @@ export function FulfilmentPanel({ order }: { order: PharmacyOrderView }) {
                 key={s}
                 onClick={() => run(s)}
                 disabled={pending}
-                className="bg-cyan text-[#05080f] hover:bg-cyan/90"
+                className="bg-blue text-white hover:bg-blue-press"
               >
                 {pending && busy === s && (
                   <Loader2 className="size-4 animate-spin" />

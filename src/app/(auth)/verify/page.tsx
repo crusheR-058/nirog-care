@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { destinationFor } from "@/lib/auth/destination";
 import { Logo } from "@/components/brand/logo";
 import { logout } from "@/app/(auth)/actions";
 import { VerifyForm } from "./verify-form";
@@ -18,9 +19,10 @@ export default async function VerifyPage() {
 
   const { data: aal } =
     await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  // No step-up required (no factor, or already at aal2) → straight to portal.
+  // No step-up required (no factor, or already at aal2) → straight through to
+  // whichever product this account belongs to.
   if (!aal || aal.nextLevel !== "aal2" || aal.currentLevel === "aal2") {
-    redirect("/portal");
+    redirect(await destinationFor(user.id));
   }
 
   return (

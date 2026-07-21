@@ -31,7 +31,7 @@ export default async function PharmacyStatusPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/pharmacy/login");
 
   const admin = createAdminClient();
   const { data: pharmacy } = await admin

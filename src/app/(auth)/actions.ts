@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { destinationFor } from "@/lib/auth/destination";
 
 export type SignInState = { error?: string };
 export type SignUpState = { error?: string };
@@ -27,8 +28,8 @@ export async function authenticate(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) {
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error || !data.user) {
     return { error: "That email and password don't match our records." };
   }
 
@@ -40,7 +41,11 @@ export async function authenticate(
   if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
     redirect("/verify");
   }
-  redirect("/portal");
+
+  // Doctors and pharmacies share one auth pool, so route on the account's real
+  // role rather than on which form was used — a pharmacy signing in here lands
+  // in its own console instead of bouncing through /portal.
+  redirect(await destinationFor(data.user.id));
 }
 
 export async function logout() {

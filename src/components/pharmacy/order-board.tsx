@@ -69,11 +69,11 @@ function PoolCard({ order, index }: { order: PharmacyOrderView; index: number })
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18 } }}
       transition={{ duration: 0.45, ease, delay: index * 0.05 }}
-      className="scanline relative overflow-hidden rounded-2xl border border-hairline bg-panel p-4 glow-cyan"
+      className="scanline relative overflow-hidden rounded-2xl border border-hairline bg-panel p-4 shadow-lift"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="tnum font-mono text-xs font-semibold text-cyan">
+          <p className="tnum font-mono text-xs font-semibold text-blue">
             {orderRef(order.id)}
           </p>
           <p className="mt-1 truncate font-display text-base font-bold text-ink">
@@ -108,7 +108,7 @@ function PoolCard({ order, index }: { order: PharmacyOrderView; index: number })
           size="sm"
           onClick={accept}
           disabled={pending}
-          className="flex-1 bg-cyan text-[#05080f] hover:bg-cyan/90"
+          className="flex-1 bg-blue text-white hover:bg-blue-press"
         >
           <Zap className="size-4" />
           {pending ? "Accepting…" : "Accept order"}
@@ -156,7 +156,7 @@ function ActiveCard({ order, index }: { order: PharmacyOrderView; index: number 
             </p>
           </div>
         </div>
-        <p className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-cyan opacity-0 transition-opacity group-hover:opacity-100">
+        <p className="mt-3 flex items-center gap-1 text-[11px] font-semibold text-blue opacity-0 transition-opacity group-hover:opacity-100">
           Open fulfilment <ArrowRight className="size-3" />
         </p>
       </Link>
@@ -231,7 +231,7 @@ export function OrderBoard({
           <h2 className="font-display text-sm font-bold uppercase tracking-widest text-ink">
             Incoming
           </h2>
-          <span className="tnum rounded-full bg-soft-cyan px-2 py-0.5 text-[11px] font-bold text-cyan">
+          <span className="tnum rounded-full bg-soft-blue px-2 py-0.5 text-[11px] font-bold text-blue">
             {pool.length}
           </span>
           <span className="ml-auto text-[11px] text-ink-faint">

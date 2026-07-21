@@ -167,7 +167,8 @@ export function Closing() {
             links={[
               ["Doctor portal", "/portal"],
               ["Partner as a pharmacy", "/pharmacy"],
-              ["Sign in", "/login"],
+              ["Pharmacy sign in", "/pharmacy/login"],
+              ["Doctor sign in", "/login"],
               ["Create account", "/signup"],
             ]}
           />

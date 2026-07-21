@@ -7,6 +7,7 @@ const accents = {
   amber: "text-amber bg-soft-amber",
   green: "text-green bg-soft-green",
   indigo: "text-indigo bg-soft-indigo",
+  aria: "text-aria bg-soft-purple",
 } as const;
 
 export function StatTile({

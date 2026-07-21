@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PharmacyProfile } from "@/lib/pharmacy/config";
 import { pharmacyAutoVerify } from "@/lib/pharmacy/verification";
+import { destinationFor } from "@/lib/auth/destination";
 
 export type PharmacySignUpState = { error?: string };
 export type SaveResult = { ok: true } | { ok: false; error: string };
@@ -177,7 +178,7 @@ export async function selfApprovePharmacy(): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) redirect("/pharmacy/login");
 
   const admin = createAdminClient();
   const { data: pharmacy } = await admin
@@ -202,4 +203,44 @@ export async function selfApprovePharmacy(): Promise<void> {
 
   revalidatePath("/pharmacy/status");
   redirect("/pharmacy/dashboard");
+}
+
+const pharmacySignInSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+/**
+ * Pharmacy sign-in.
+ *
+ * Separate from the clinician form so partners get their own branded entry
+ * point, but the destination is resolved from the account's ACTUAL role — a
+ * doctor who lands here still ends up in the portal rather than being told
+ * their correct password is wrong.
+ */
+export async function authenticatePharmacy(
+  _prev: PharmacySignUpState,
+  formData: FormData
+): Promise<PharmacySignUpState> {
+  const parsed = pharmacySignInSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
+  if (!parsed.success) return { error: "Enter a valid email and password." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  if (error || !data.user) {
+    return { error: "That email and password don't match our records." };
+  }
+
+  revalidatePath("/", "layout");
+
+  // Honour any TOTP factor before handing over a dispensing console.
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+    redirect("/verify");
+  }
+
+  redirect(await destinationFor(data.user.id));
 }

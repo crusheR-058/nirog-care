@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Activity, ArrowRight } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  Inbox,
+  Package,
+  Timer,
+  Truck,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   ACTIVE_STATUSES,
   createPharmacySource,
 } from "@/lib/data/pharmacy-source";
-import { StatTile } from "@/components/pharmacy/console-ui";
+// The same tile the clinician dashboard uses — one component, one design.
+import { StatTile } from "@/components/portal/stat-tile";
 import { OrderBoard } from "@/components/pharmacy/order-board";
 
 export const metadata: Metadata = { title: "Command · Nirog Pharmacy" };
@@ -39,11 +48,11 @@ export default async function PharmacyDashboard() {
     <div className="mx-auto max-w-6xl">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-cyan">
-            <span className="live-dot inline-block size-1.5 rounded-full bg-cyan" />
+          <p className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue">
+            <span className="live-dot inline-block size-1.5 rounded-full bg-blue" />
             Live · dispensing console
           </p>
-          <h1 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+          <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink">
             Command centre
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
@@ -59,41 +68,41 @@ export default async function PharmacyDashboard() {
         </Link>
       </header>
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatTile
           label="Incoming"
           value={stats.incoming}
           hint="Unclaimed in your district"
-          accent="cyan"
-          index={0}
+          icon={Inbox}
+          accent="blue"
         />
         <StatTile
           label="In fulfilment"
           value={stats.active}
-          hint="Accepted, not yet delivered"
-          accent="blue"
-          index={1}
+          hint="Accepted, not delivered"
+          icon={Package}
+          accent="indigo"
         />
         <StatTile
           label="Out for delivery"
           value={stats.dispatched}
           hint="On the road now"
+          icon={Truck}
           accent="aria"
-          index={2}
         />
         <StatTile
           label="Delivered 24 h"
           value={stats.deliveredToday}
           hint="Completed today"
+          icon={CheckCircle2}
           accent="green"
-          index={3}
         />
         <StatTile
           label="Avg. accept"
           value={stats.avgAcceptMin ? `${stats.avgAcceptMin}m` : "—"}
           hint="Routed → accepted"
+          icon={Timer}
           accent="amber"
-          index={4}
         />
       </div>
 
