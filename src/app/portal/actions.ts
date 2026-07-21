@@ -14,6 +14,13 @@ const prescriptionSchema = z.object({
   frequency: z.string(),
   durationDays: z.number().int().nonnegative(),
   notes: z.string().optional(),
+  // Set when the line was picked from the WHO ATC catalogue rather than typed
+  // free-hand. Zod strips unknown keys, so these must be declared or the code
+  // never reaches the dispensing pharmacy.
+  atcCode: z.string().optional(),
+  drugId: z.string().optional(),
+  quantity: z.number().int().positive().optional(),
+  substitutionAllowed: z.boolean().optional(),
 });
 
 const labSchema = z.object({

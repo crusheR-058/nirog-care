@@ -27,22 +27,33 @@ export type CallStatus =
   | "connected"
   | "ended";
 
-// Same STUN + optional TURN as the web side. For rural mobile networks a TURN
-// relay is effectively required — set EXPO_PUBLIC_TURN_* to the same server.
-const TURN_URLS = (process.env.EXPO_PUBLIC_TURN_URLS ?? "")
-  .split(",").map((u) => u.trim()).filter(Boolean);
-const RTC_CONFIG = {
+// Relay credentials come from the portal's /api/ice endpoint — the SAME source
+// the web side uses, so both peers always agree on the TURN server. Never
+// hardcode TURN credentials in the app bundle: relay traffic is metered and
+// billable, and anything shipped to a device is public.
+//
+//   EXPO_PUBLIC_PORTAL_URL=https://drconnect-nirog.vercel.app
+const PORTAL_URL = (process.env.EXPO_PUBLIC_PORTAL_URL ?? "").replace(/\/$/, "");
+
+const STUN_ONLY = {
   iceServers: [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-    ...(TURN_URLS.length
-      ? [{
-          urls: TURN_URLS,
-          username: process.env.EXPO_PUBLIC_TURN_USERNAME ?? "",
-          credential: process.env.EXPO_PUBLIC_TURN_CREDENTIAL ?? "",
-        }]
-      : []),
   ],
 };
+
+/** Fetch ICE servers; degrade to STUN-only rather than failing the call. */
+async function fetchRtcConfig() {
+  if (!PORTAL_URL) return STUN_ONLY;
+  try {
+    const res = await fetch(`${PORTAL_URL}/api/ice`);
+    if (!res.ok) throw new Error(`ice ${res.status}`);
+    const json = await res.json();
+    return json?.iceServers?.length ? { iceServers: json.iceServers } : STUN_ONLY;
+  } catch (err) {
+    console.warn("[nirog] ICE fetch failed, using STUN only:", err);
+    return STUN_ONLY;
+  }
+}
 
 interface Signal {
   kind: "hello" | "offer" | "answer" | "ice" | "bye";
@@ -65,6 +76,9 @@ export function useNativeCall(room: string) {
   const statusRef = useRef<CallStatus>("idle");
   const startedRef = useRef(false);
   const pendingIce = useRef<unknown[]>([]);
+  // Resolved once in start(); newPc() stays synchronous because it also runs
+  // mid-negotiation, where awaiting would race the incoming offer.
+  const rtcConfigRef = useRef<any>(STUN_ONLY);
 
   const setBoth = (s: CallStatus) => { statusRef.current = s; setStatus(s); };
   const send = useCallback((p: Signal) => {
@@ -74,7 +88,7 @@ export function useNativeCall(room: string) {
   const newPc = useCallback(() => {
     pcRef.current?.close();
     pendingIce.current = [];
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection(rtcConfigRef.current);
     streamRef.current?.getTracks().forEach((t) => pc.addTrack(t, streamRef.current!));
     // @ts-expect-error RN event typings
     pc.addEventListener("icecandidate", (e: any) => {
@@ -138,6 +152,10 @@ export function useNativeCall(room: string) {
   const start = useCallback(async () => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    // Runs in parallel with the permission prompt, so it costs no extra time.
+    const configPromise = fetchRtcConfig();
+
     try {
       const stream = await mediaDevices.getUserMedia({
         audio: true,
@@ -150,6 +168,8 @@ export function useNativeCall(room: string) {
       setBoth("media-error");
       return;
     }
+
+    rtcConfigRef.current = await configPromise;
     setBoth("waiting");
 
     const chan = supabase.channel(`call-${room}`, {

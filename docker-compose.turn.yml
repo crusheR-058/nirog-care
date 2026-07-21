@@ -1,0 +1,37 @@
+# Self-hosted TURN relay for Nirog consultations.
+#
+# Run this on a machine with a PUBLIC IPv4 address — a TURN server behind NAT
+# cannot relay, which defeats the point. A 1 vCPU / 1 GB VM is enough for a few
+# hundred concurrent calls; relayed video is roughly 1.5 Mbit/s per leg, so size
+# bandwidth, not CPU.
+#
+#   export TURN_REALM=turn.nirog.health
+#   export TURN_SECRET="$(openssl rand -hex 32)"
+#   export TURN_PUBLIC_IP=203.0.113.10
+#   docker compose -f docker-compose.turn.yml up -d
+#
+# Then set on the web app (Vercel) and the Expo app:
+#   TURN_URLS=turn:turn.nirog.health:3478,turns:turn.nirog.health:5349
+#   TURN_SECRET=<the same secret>
+#
+# The secret never reaches a client: /api/ice derives a short-lived HMAC
+# credential from it per caller (see src/lib/webrtc/ice.ts).
+
+services:
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    restart: unless-stopped
+    # Host networking so coturn sees real peer addresses and can allocate the
+    # relay port range without per-port NAT mapping.
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+      # TLS for turns:5349. Point these at your certbot output.
+      - /etc/letsencrypt/live/${TURN_REALM}/fullchain.pem:/etc/coturn/cert.pem:ro
+      - /etc/letsencrypt/live/${TURN_REALM}/privkey.pem:/etc/coturn/pkey.pem:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --realm=${TURN_REALM}
+      - --static-auth-secret=${TURN_SECRET}
+      - --external-ip=${TURN_PUBLIC_IP}

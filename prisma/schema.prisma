@@ -101,6 +101,7 @@ model Doctor {
   encounters     Encounter[]
   consents       ConsentGrant[]
   audits         AuditEvent[]
+  prescriptions  Prescription[]
 }
 
 /// A partner pharmacy that fulfils prescriptions (the "Fulfil" step of the
@@ -128,6 +129,8 @@ model Pharmacy {
   /// Full onboarding payload (country-aware fields + document paths).
   profile            Json?
   createdAt          DateTime @default(now())
+
+  orders PharmacyOrder[]
 }
 
 /// A patient profile. An account is NOT a patient; relationships are explicit.
@@ -152,6 +155,7 @@ model Patient {
   queueEntries          QueueEntry[]
   encounters            Encounter[]
   consents              ConsentGrant[]
+  prescriptions         Prescription[]
 }
 
 /// ARIA (AI intake) structured, UNVERIFIED summary handed to a clinician.
@@ -212,6 +216,7 @@ model Encounter {
   labRequests    Json           @default("[]")
   followUp       Json?
   ariaAccepted   Boolean        @default(false)
+  prescription   Prescription?
 }
 
 /// Purpose-specific, revocable consent that gates record access.
@@ -238,4 +243,172 @@ model AuditEvent {
   target    String
   reason    String?
   at        DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fulfilment — the "Fulfil" step of the care loop.
+//
+// A filed Encounter mints a Prescription. The Prescription is routed to the
+// patient's district as an unassigned PharmacyOrder (pharmacyId = NULL) — the
+// same pool-and-claim shape as the on-demand doctor queue. Any *verified*
+// pharmacy in that district can atomically claim it, then walk it through
+// fulfilment. Every transition appends an immutable OrderEvent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// WHO ATC/DDD drug catalogue — the global classification of drug substances.
+/// Seeded from the WHO Collaborating Centre ATC index (5 levels: anatomical →
+/// therapeutic → pharmacological → chemical → substance).
+model Drug {
+  id      String @id @default(cuid())
+  /// WHO ATC substance code, e.g. C08CA01 (amlodipine).
+  atcCode String @unique
+  /// INN generic name.
+  name    String
+
+  // Denormalised hierarchy — keeps catalogue search and faceting a single scan.
+  anatomicalCode      String
+  anatomicalName      String
+  therapeuticCode     String
+  therapeuticName     String
+  pharmacologicalCode String
+  pharmacologicalName String
+  chemicalCode        String
+  chemicalName        String
+
+  /// WHO Defined Daily Dose (the assumed average maintenance dose).
+  ddd       Float?
+  dddUom    String?
+  /// Route of administration the DDD applies to (O, P, N, R, SL, TD, …).
+  route     String?
+  /// Lowercased name + ATC + class text, for trigram search.
+  searchText String
+
+  items PrescriptionItem[]
+
+  @@index([anatomicalCode])
+  @@index([name])
+}
+
+enum PrescriptionStatus {
+  issued
+  routed
+  fulfilled
+  cancelled
+}
+
+enum OrderStatus {
+  routed
+  accepted
+  preparing
+  ready
+  dispatched
+  delivered
+  rejected
+  cancelled
+}
+
+enum DeliveryMode {
+  pickup
+  delivery
+}
+
+/// A digitally issued prescription — one per encounter.
+model Prescription {
+  id          String             @id @default(cuid())
+  encounter   Encounter          @relation(fields: [encounterId], references: [id])
+  encounterId String             @unique
+  patient     Patient            @relation(fields: [patientId], references: [id])
+  patientId   String
+  doctor      Doctor             @relation(fields: [doctorId], references: [id])
+  doctorId    String
+  issuedAt    DateTime           @default(now())
+  status      PrescriptionStatus @default(issued)
+  /// Free-text dispensing note for the pharmacist.
+  notes       String?
+  /// Snapshot of the prescriber at issue time — a prescription must stay
+  /// readable and attributable even if the doctor profile later changes.
+  doctorName  String
+  doctorRegNo String
+
+  items PrescriptionItem[]
+  order PharmacyOrder?
+
+  @@index([patientId])
+  @@index([doctorId])
+}
+
+/// One prescribed line. `drug` links the WHO catalogue entry; the name/strength
+/// are ALSO snapshotted so the line stays legible if the catalogue changes.
+model PrescriptionItem {
+  id             String       @id @default(cuid())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescriptionId String
+  drug           Drug?        @relation(fields: [drugId], references: [id])
+  drugId         String?
+  /// Snapshot — what the doctor actually wrote.
+  drugName       String
+  atcCode        String?
+  strength       String?
+  form           String?
+  dose           String?
+  frequency      String?
+  durationDays   Int?
+  quantity       Int?
+  instructions   String?
+  /// May the pharmacy dispense an equivalent generic?
+  substitutionAllowed Boolean @default(true)
+
+  @@index([prescriptionId])
+}
+
+/// A prescription routed to a district for fulfilment. pharmacyId is NULL while
+/// it sits in the pool; claiming it assigns the pharmacy atomically.
+model PharmacyOrder {
+  id             String       @id @default(cuid())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id])
+  prescriptionId String       @unique
+  pharmacy       Pharmacy?    @relation(fields: [pharmacyId], references: [id])
+  pharmacyId     String?
+
+  // Routing key — the pool is scoped by geography, not by patient identity.
+  district String?
+  state    String?
+  country  String?
+
+  status       OrderStatus  @default(routed)
+  deliveryMode DeliveryMode @default(delivery)
+
+  // Delivery snapshot. Deliberately NOT a join to Patient: a pharmacy gets the
+  // minimum needed to dispense and deliver, and no access to the clinical
+  // record. Widening this would need a new consent scope, not a new join.
+  patientName    String
+  patientPhone   String?
+  patientVillage String?
+  patientDistrict String?
+
+  routedAt        DateTime  @default(now())
+  acceptedAt      DateTime?
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
+  rejectionReason String?
+  /// Settlement amount once priced by the pharmacy (minor units of country ccy).
+  totalAmount     Int?
+
+  events OrderEvent[]
+
+  @@index([pharmacyId, status])
+  @@index([district, status])
+}
+
+/// Append-only fulfilment trail for one order.
+model OrderEvent {
+  id      String      @id @default(cuid())
+  order   PharmacyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId String
+  status  OrderStatus
+  note    String?
+  actor   String
+  at      DateTime    @default(now())
+
+  @@index([orderId])
 }

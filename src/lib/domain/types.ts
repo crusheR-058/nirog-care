@@ -191,6 +191,7 @@ export interface QueueEntry {
   connectionQuality: "good" | "fair" | "poor";
 }
 
+/** One medication line on a care plan. */
 export interface Prescription {
   id: string;
   drug: string;
@@ -200,6 +201,12 @@ export interface Prescription {
   frequency: string;
   durationDays: number;
   notes?: string;
+  /** WHO ATC code when the line was picked from the catalogue (not free text). */
+  atcCode?: string;
+  drugId?: string;
+  quantity?: number;
+  /** May the pharmacy dispense an equivalent generic? */
+  substitutionAllowed?: boolean;
 }
 
 export interface LabRequest {
@@ -269,4 +276,108 @@ export interface DashboardStats {
   completedToday: number;
   avgWaitMin: number;
   emergencies: number;
+}
+
+// ─── Fulfilment ──────────────────────────────────────────────────────────────
+
+/** A WHO ATC catalogue entry — the global classification of drug substances. */
+export interface Drug {
+  id: string;
+  atcCode: string;
+  name: string;
+  anatomicalCode: string;
+  anatomicalName: string;
+  therapeuticCode: string;
+  therapeuticName: string;
+  pharmacologicalCode: string;
+  pharmacologicalName: string;
+  chemicalCode: string;
+  chemicalName: string;
+  /** WHO Defined Daily Dose — the assumed average maintenance dose. */
+  ddd?: number;
+  dddUom?: string;
+  route?: string;
+}
+
+export type OrderStatus =
+  | "routed"
+  | "accepted"
+  | "preparing"
+  | "ready"
+  | "dispatched"
+  | "delivered"
+  | "rejected"
+  | "cancelled";
+
+export type DeliveryMode = "pickup" | "delivery";
+
+export interface PrescriptionItem {
+  id: string;
+  drugId?: string;
+  drugName: string;
+  atcCode?: string;
+  strength?: string;
+  form?: string;
+  dose?: string;
+  frequency?: string;
+  durationDays?: number;
+  quantity?: number;
+  instructions?: string;
+  substitutionAllowed: boolean;
+}
+
+export interface OrderEvent {
+  id: string;
+  orderId: string;
+  status: OrderStatus;
+  note?: string;
+  actor: string;
+  at: string;
+}
+
+/**
+ * One dispensing job as a pharmacy sees it.
+ *
+ * Note what is NOT here: no diagnosis, no clinical notes, no patient id. The
+ * delivery details are snapshotted onto the order so fulfilment never needs a
+ * join into the clinical record.
+ */
+export interface PharmacyOrderView {
+  id: string;
+  prescriptionId: string;
+  pharmacyId?: string;
+  status: OrderStatus;
+  deliveryMode: DeliveryMode;
+  district?: string;
+  state?: string;
+  country?: string;
+  patientName: string;
+  patientPhone?: string;
+  patientVillage?: string;
+  patientDistrict?: string;
+  routedAt: string;
+  acceptedAt?: string;
+  dispatchedAt?: string;
+  deliveredAt?: string;
+  rejectionReason?: string;
+  totalAmount?: number;
+  /** Prescriber attribution, snapshotted at issue. */
+  doctorName: string;
+  doctorRegNo: string;
+  issuedAt: string;
+  notes?: string;
+  items: PrescriptionItem[];
+  events?: OrderEvent[];
+  /** Minutes since the order was routed — the pharmacy's SLA clock. */
+  waitingMinutes: number;
+}
+
+/** Rollup for the pharmacy command centre. */
+export interface PharmacyStats {
+  incoming: number;
+  active: number;
+  dispatched: number;
+  deliveredToday: number;
+  avgAcceptMin: number;
+  lines30d: number;
 }

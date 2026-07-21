@@ -12,6 +12,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MfaSetup } from "@/components/portal/mfa-setup";
+import { CallDiagnostics } from "@/components/portal/call-diagnostics";
 
 export const metadata: Metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
@@ -19,7 +20,12 @@ export const dynamic = "force-dynamic";
 export default async function SettingsPage() {
   const ds = await getDataSource();
   const doctor = await ds.getDoctor();
-  const backend = process.env.NIROG_DATA_SOURCE === "db" ? "PostgreSQL" : "In-memory mock";
+  const backend =
+    {
+      supabase: "Supabase Postgres (RLS-enforced)",
+      db: "PostgreSQL (Prisma)",
+      mock: "In-memory mock",
+    }[process.env.NIROG_DATA_SOURCE ?? "mock"] ?? "In-memory mock";
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
@@ -111,6 +117,8 @@ export default async function SettingsPage() {
           swapped without changing the interface.
         </p>
       </section>
+
+      <CallDiagnostics />
     </div>
   );
 }

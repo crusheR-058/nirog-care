@@ -17,10 +17,13 @@ export async function pharmacyRedirectFor(): Promise<string | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from("Pharmacy")
-    .select("onboardingComplete")
+    .select("onboardingComplete,verified")
     .eq("authUserId", user.id)
     .maybeSingle();
 
   if (!data) return null;
-  return data.onboardingComplete ? "/pharmacy/status" : "/pharmacy/onboarding";
+  if (!data.onboardingComplete) return "/pharmacy/onboarding";
+  // Verification is what unlocks real prescriptions, so it also gates the
+  // console: unverified partners wait on the status page.
+  return data.verified ? "/pharmacy/dashboard" : "/pharmacy/status";
 }

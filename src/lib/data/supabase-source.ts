@@ -41,6 +41,101 @@ function uid(): string {
   return crypto.randomUUID();
 }
 
+/**
+ * Mint a prescription from a filed note and route it for fulfilment.
+ *
+ * The order is created UNASSIGNED (pharmacyId = null) and keyed by the
+ * patient's district — the same pool-and-claim shape as the on-demand doctor
+ * queue. Delivery details are snapshotted onto the order so a pharmacy never
+ * needs (and never gets) access to the Patient table or the clinical record.
+ *
+ * Best-effort by design: a failure here must not lose the clinical note, which
+ * is already committed by the time we're called.
+ */
+async function issuePrescription(
+  supabase: SupabaseClient,
+  args: {
+    encounterId: string;
+    patientId: string;
+    doctor: Row;
+    prescriptions: Encounter["prescriptions"];
+    at: string;
+  }
+): Promise<string | null> {
+  const { encounterId, patientId, doctor: d, prescriptions, at } = args;
+  try {
+    const { data: patient } = await supabase
+      .from("Patient")
+      .select("fullName,phoneMasked,village,district")
+      .eq("id", patientId)
+      .maybeSingle();
+
+    const prescriptionId = uid();
+    const pres = await supabase.from("Prescription").insert({
+      id: prescriptionId,
+      encounterId,
+      patientId,
+      doctorId: d.id,
+      issuedAt: at,
+      status: "routed",
+      doctorName: d.fullName,
+      doctorRegNo: d.registrationNo ?? "",
+    });
+    if (pres.error) throw pres.error;
+
+    const items = prescriptions.map((rx) => ({
+      id: uid(),
+      prescriptionId,
+      drugId: rx.drugId ?? null,
+      drugName: rx.drug,
+      atcCode: rx.atcCode ?? null,
+      strength: rx.strength || null,
+      form: rx.form || null,
+      dose: rx.dose || null,
+      frequency: rx.frequency || null,
+      durationDays: rx.durationDays || null,
+      quantity: rx.quantity ?? null,
+      instructions: rx.notes || null,
+      substitutionAllowed: rx.substitutionAllowed ?? true,
+    }));
+    const itemIns = await supabase.from("PrescriptionItem").insert(items);
+    if (itemIns.error) throw itemIns.error;
+
+    const order = await supabase.from("PharmacyOrder").insert({
+      id: uid(),
+      prescriptionId,
+      pharmacyId: null,
+      district: patient?.district ?? null,
+      state: (d.profile as Row)?.clinicState ?? null,
+      country: d.country ?? null,
+      status: "routed",
+      deliveryMode: "delivery",
+      patientName: patient?.fullName ?? "Patient",
+      patientPhone: patient?.phoneMasked ?? null,
+      patientVillage: patient?.village ?? null,
+      patientDistrict: patient?.district ?? null,
+      routedAt: at,
+    });
+    if (order.error) throw order.error;
+
+    await supabase.from("AuditEvent").insert({
+      id: uid(),
+      actorId: d.id,
+      actorName: d.fullName,
+      action: "Issued prescription",
+      target: patientId,
+      reason: `${items.length} medication line(s) routed for fulfilment`,
+      at,
+    });
+    return prescriptionId;
+  } catch (err) {
+    // The encounter is already filed; surface the routing failure without
+    // rolling back clinical data.
+    console.error("[nirog] prescription routing failed:", err);
+    return null;
+  }
+}
+
 const TRIAGE_RANK = { emergency: 0, urgent: 1, routine: 2 } as const;
 const STATE_RANK: Record<string, number> = {
   waiting: 0,
@@ -451,6 +546,18 @@ export function createSupabaseDataSource(
         reason: input.chiefComplaint,
         at: now,
       });
+
+      // Close the care loop: a note with medications mints a prescription and
+      // routes it to the patient's district for fulfilment.
+      if (input.prescriptions.length > 0) {
+        await issuePrescription(supabase, {
+          encounterId: id,
+          patientId: input.patientId,
+          doctor: d,
+          prescriptions: input.prescriptions,
+          at: now,
+        });
+      }
 
       return mapEncounter(insert.data);
     },

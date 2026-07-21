@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Label } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DrugPicker } from "@/components/portal/drug-picker";
 import { saveEncounterAction } from "@/app/portal/actions";
 import type {
   AriaHandover,
@@ -171,11 +172,11 @@ export function ConsultForm({
               className="rounded-xl border border-hairline bg-panel-2 p-3"
             >
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Input
+                <DrugPicker
                   className="col-span-2 sm:col-span-2"
-                  placeholder="Drug (e.g. Amlodipine)"
                   value={rx.drug}
-                  onChange={(e) => updateRx(rx.id, { drug: e.target.value })}
+                  atcCode={rx.atcCode}
+                  onChange={(next) => updateRx(rx.id, next)}
                 />
                 <Input
                   placeholder="Strength"
@@ -351,7 +352,9 @@ export function ConsultForm({
             </Badge>
           )}
           <span className="hidden sm:inline">
-            Filing signs the note under your registration.
+            {prescriptions.some((r) => r.drug)
+              ? "Filing routes the prescription to a verified pharmacy in the patient's district."
+              : "Filing records the note against your registration."}
           </span>
         </div>
         <Button onClick={submit} disabled={pending}>

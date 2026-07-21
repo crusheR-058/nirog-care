@@ -15,27 +15,35 @@ export type CallStatus =
 
 // STUN gets peers connected on most home/Wi-Fi networks. A TURN relay is
 // required for the hard cases — carrier-grade NAT and restrictive mobile
-// networks common in rural India — where a direct path can't be found. TURN
-// creds are injected via NEXT_PUBLIC_TURN_* env (empty = STUN-only fallback).
-const TURN_URLS = (process.env.NEXT_PUBLIC_TURN_URLS ?? "")
-  .split(",")
-  .map((u) => u.trim())
-  .filter(Boolean);
-
-const RTC_CONFIG: RTCConfiguration = {
+// networks common in rural India — where a direct path can't be found.
+//
+// Credentials are fetched from /api/ice rather than read from NEXT_PUBLIC_*
+// env: TURN egress is metered and billable, so a credential embedded in the
+// client bundle is a standing invitation to use our relay for free. The
+// endpoint mints a short-lived HMAC credential per caller instead.
+const STUN_ONLY: RTCConfiguration = {
   iceServers: [
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-    ...(TURN_URLS.length
-      ? [
-          {
-            urls: TURN_URLS,
-            username: process.env.NEXT_PUBLIC_TURN_USERNAME ?? "",
-            credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL ?? "",
-          },
-        ]
-      : []),
   ],
 };
+
+/**
+ * Fetch ICE servers for this call. Falls back to STUN-only if the endpoint is
+ * unreachable — a degraded call beats no call, and the failure is visible in
+ * the diagnostics panel rather than silently blocking the consultation.
+ */
+async function fetchRtcConfig(): Promise<RTCConfiguration> {
+  try {
+    const res = await fetch("/api/ice", { cache: "no-store" });
+    if (!res.ok) throw new Error(`ice ${res.status}`);
+    const json = (await res.json()) as { iceServers?: RTCIceServer[] };
+    if (!json.iceServers?.length) return STUN_ONLY;
+    return { iceServers: json.iceServers };
+  } catch (err) {
+    console.warn("[nirog] ICE fetch failed, falling back to STUN:", err);
+    return STUN_ONLY;
+  }
+}
 
 interface Signal {
   kind: "hello" | "offer" | "answer" | "ice" | "bye";
@@ -71,6 +79,9 @@ export function useCall(
   const startedRef = useRef(false);
   const camOnRef = useRef(camOn);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
+  // Resolved once at start(); newPc() must stay synchronous because it is also
+  // called mid-negotiation, when awaiting would race the incoming offer.
+  const rtcConfigRef = useRef<RTCConfiguration>(STUN_ONLY);
 
   const setStatusBoth = (s: CallStatus) => {
     statusRef.current = s;
@@ -84,7 +95,7 @@ export function useCall(
   const newPc = useCallback(() => {
     pcRef.current?.close();
     pendingIce.current = [];
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection(rtcConfigRef.current);
     streamRef.current
       ?.getTracks()
       .forEach((t) => pc.addTrack(t, streamRef.current!));
@@ -170,6 +181,11 @@ export function useCall(
   const start = useCallback(async () => {
     if (startedRef.current) return;
     startedRef.current = true;
+
+    // Get the relay credentials before any peer connection exists. Runs in
+    // parallel with the permission prompt, so it costs no perceptible time.
+    const configPromise = fetchRtcConfig();
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -183,6 +199,8 @@ export function useCall(
       setStatusBoth("media-error");
       return;
     }
+
+    rtcConfigRef.current = await configPromise;
     setStatusBoth("waiting");
 
     supabaseRef.current ??= createClient();
