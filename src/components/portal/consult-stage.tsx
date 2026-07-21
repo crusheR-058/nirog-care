@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Mic,
   MicOff,
@@ -12,6 +12,8 @@ import {
   Link2,
   Check,
   CameraOff,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -20,39 +22,62 @@ import { CONNECTION } from "@/lib/domain/labels";
 import { useCall, useVideoRef } from "@/lib/webrtc/use-call";
 
 /**
- * The live consultation surface — a real WebRTC call. The doctor's camera and
- * mic are captured on Connect; the patient joins from the shareable
- * /call/<room> link and the two peers stream directly to each other. Mute and
- * camera toggles flip the live tracks, so the other side genuinely stops
- * hearing/seeing.
+ * The live consultation surface — a real WebRTC call.
+ *
+ * Camera-off is a first-class state, not a black rectangle: each side
+ * announces mic/cam over the signalling channel (a disabled video track sends
+ * black frames, so the far side cannot detect it from media alone), and the
+ * stage renders an initial-letter avatar for whoever is off — the doctor's own
+ * initial in the self view, the patient's on the main stage.
  */
 export function ConsultStage({
   room,
   patientName,
+  doctorName,
   avatarTone,
   channel,
   connection,
 }: {
   room: string;
   patientName: string;
+  doctorName: string;
   avatarTone?: string;
   channel: ConsultChannel;
   connection: "good" | "fair" | "poor";
 }) {
   const call = useCall(room, "doctor", {
     startWithVideo: channel !== "audio",
+    displayName: doctorName,
   });
   const localRef = useVideoRef(call.localStream);
   const remoteRef = useVideoRef(call.remoteStream);
+  const stageRef = useRef<HTMLDivElement>(null);
 
   const [seconds, setSeconds] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     if (call.status !== "connected") return;
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [call.status]);
+
+  // Track actual fullscreen state — Esc exits without telling our button.
+  useEffect(() => {
+    const onChange = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await stageRef.current?.requestFullscreen();
+    } catch {
+      // Fullscreen can be denied (iframe policy); the button just no-ops.
+    }
+  }, []);
 
   const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(
     seconds % 60
@@ -67,11 +92,28 @@ export function ConsultStage({
     } catch {}
   }
 
-  const inCall = call.status === "waiting" || call.status === "connecting" || call.status === "connected";
+  const inCall =
+    call.status === "waiting" ||
+    call.status === "connecting" ||
+    call.status === "connected";
+  const live = call.status === "connected" && !!call.remoteStream;
+  const remoteCamOff = live && !call.remote.camOn;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-hairline bg-ink shadow-lift">
-      <div className="relative aspect-video w-full bg-[radial-gradient(120%_100%_at_50%_0%,#2a2a30_0%,#0c0c0e_70%)]">
+    <div
+      ref={stageRef}
+      className={cn(
+        "flex flex-col overflow-hidden rounded-2xl border border-hairline bg-ink shadow-lift",
+        // In fullscreen the element IS the viewport; let the stage take all of it.
+        fullscreen && "h-dvh rounded-none border-0"
+      )}
+    >
+      <div
+        className={cn(
+          "relative w-full bg-[radial-gradient(120%_100%_at_50%_0%,#2a2a30_0%,#0c0c0e_70%)]",
+          fullscreen ? "flex-1" : "aspect-video"
+        )}
+      >
         {/* remote (patient) video — the main stage */}
         <video
           ref={remoteRef}
@@ -79,26 +121,83 @@ export function ConsultStage({
           playsInline
           data-remote
           className={cn(
-            "absolute inset-0 size-full object-cover",
-            call.remoteStream ? "opacity-100" : "opacity-0"
+            "absolute inset-0 size-full",
+            fullscreen ? "object-contain" : "object-cover",
+            call.remoteStream && !remoteCamOff ? "opacity-100" : "opacity-0"
           )}
         />
 
-        {/* local preview — fullscreen while waiting, PiP once connected */}
-        <video
-          ref={localRef}
-          autoPlay
-          playsInline
-          muted
-          data-local
+        {/* remote camera off → the patient's initial, not a black box */}
+        {remoteCamOff && (
+          <div
+            className="absolute inset-0 grid place-items-center"
+            data-remote-cam-off
+          >
+            {/* The queue already knows exactly who this patient is — that beats
+                the presence channel's self-reported name, which a browser
+                patient can only fill with a generic label. */}
+            <div className="flex flex-col items-center gap-3 text-white/85">
+              <Avatar
+                name={patientName}
+                tone={avatarTone as never}
+                size="lg"
+                className="size-24 text-3xl"
+              />
+              <p className="text-sm font-medium">{patientName}</p>
+              <p className="text-xs text-white/50">Camera is off</p>
+            </div>
+          </div>
+        )}
+
+        {/* self view — fullscreen while waiting, PiP once connected */}
+        <div
           className={cn(
-            "-scale-x-100 object-cover transition-all duration-500",
+            "transition-all duration-500",
             call.remoteStream
-              ? "absolute bottom-3 right-3 z-10 h-24 w-36 rounded-xl border border-white/20 shadow-float sm:h-28 sm:w-44"
-              : "absolute inset-0 size-full",
-            call.localStream && call.camOn ? "opacity-100" : "opacity-0"
+              ? "absolute bottom-3 right-3 z-10 h-28 w-44 overflow-hidden rounded-xl border border-white/20 shadow-float sm:h-32 sm:w-52"
+              : "absolute inset-0"
           )}
-        />
+        >
+          <video
+            ref={localRef}
+            autoPlay
+            playsInline
+            muted
+            data-local
+            className={cn(
+              "size-full -scale-x-100 object-cover",
+              call.localStream && call.camOn ? "opacity-100" : "opacity-0"
+            )}
+          />
+          {/* own camera off → the doctor's own initial */}
+          {inCall && !call.camOn && (
+            <div
+              className="absolute inset-0 grid place-items-center bg-white/5"
+              data-local-cam-off
+            >
+              <div className="flex flex-col items-center gap-2 text-white/80">
+                <Avatar
+                  name={doctorName}
+                  tone="blue"
+                  size={call.remoteStream ? "default" : "lg"}
+                  className={call.remoteStream ? undefined : "size-24 text-3xl"}
+                />
+                {!call.remoteStream && (
+                  <>
+                    <p className="text-sm font-medium">{doctorName}</p>
+                    <p className="text-xs text-white/50">Your camera is off</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          {/* own mic muted — visible on the self tile */}
+          {inCall && !call.micOn && call.remoteStream && (
+            <span className="absolute bottom-1.5 left-1.5 grid size-6 place-items-center rounded-full bg-red/90 text-white">
+              <MicOff className="size-3.5" />
+            </span>
+          )}
+        </div>
 
         {/* overlays by state */}
         {call.status === "idle" && (
@@ -121,15 +220,6 @@ export function ConsultStage({
               <p className="text-xs text-white/50">
                 Allow camera & mic access in your browser, then try again.
               </p>
-            </div>
-          </div>
-        )}
-
-        {inCall && !call.camOn && !call.remoteStream && (
-          <div className="absolute inset-0 grid place-items-center">
-            <div className="flex flex-col items-center gap-3 text-white/70">
-              <Avatar name={patientName} tone={avatarTone as never} size="lg" />
-              <p className="text-xs">Camera off · audio consultation</p>
             </div>
           </div>
         )}
@@ -182,7 +272,30 @@ export function ConsultStage({
               </span>
             </>
           )}
+          {/* far side muted — the doctor should know why it's silent */}
+          {live && !call.remote.micOn && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-amber backdrop-blur"
+              data-remote-muted
+            >
+              <MicOff className="size-3.5" /> Patient muted
+            </span>
+          )}
         </div>
+
+        {/* fullscreen toggle */}
+        <button
+          type="button"
+          onClick={() => void toggleFullscreen()}
+          aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-full bg-black/40 text-white/80 backdrop-blur transition-colors hover:bg-black/60 hover:text-white"
+        >
+          {fullscreen ? (
+            <Minimize2 className="size-4" />
+          ) : (
+            <Maximize2 className="size-4" />
+          )}
+        </button>
       </div>
 
       {/* controls */}

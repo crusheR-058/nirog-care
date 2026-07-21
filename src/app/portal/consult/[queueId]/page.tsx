@@ -22,7 +22,10 @@ export default async function ConsultPage({
   const ds = await getDataSource();
   const item = await ds.getQueueItem(queueId);
   if (!item) notFound();
-  const chart = await ds.getPatientChart(item.patientId);
+  const [chart, doctor] = await Promise.all([
+    ds.getPatientChart(item.patientId),
+    ds.getDoctor(),
+  ]);
   if (!chart) notFound();
 
   const { patient, handover } = chart;
@@ -40,7 +43,8 @@ export default async function ConsultPage({
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
+      {/* The call is the primary surface — give it the wider column. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         {/* Consult surface + context */}
         <div className="space-y-5 lg:sticky lg:top-20 lg:self-start">
           <div className="flex items-center gap-3">
@@ -56,6 +60,7 @@ export default async function ConsultPage({
           <ConsultStage
             room={item.id}
             patientName={patient.fullName}
+            doctorName={doctor.fullName}
             avatarTone={patient.avatarTone}
             channel={item.channel}
             connection={item.connectionQuality}

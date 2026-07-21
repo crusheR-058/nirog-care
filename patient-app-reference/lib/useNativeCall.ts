@@ -56,10 +56,15 @@ async function fetchRtcConfig() {
 }
 
 interface Signal {
-  kind: "hello" | "offer" | "answer" | "ice" | "bye";
+  kind: "hello" | "offer" | "answer" | "ice" | "bye" | "state";
   from: "doctor" | "patient";
   sdp?: unknown;
   candidate?: unknown;
+  // "state" — presence the media can't carry: a disabled video track sends
+  // black frames, so cam-off must be announced explicitly. Mirrors the web.
+  micOn?: boolean;
+  camOn?: boolean;
+  name?: string;
 }
 
 export function useNativeCall(room: string) {
@@ -69,6 +74,12 @@ export function useNativeCall(room: string) {
   const [camOn, setCamOn] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  // The doctor's name + mic/cam state, announced over signalling. Render an
+  // initial-letter avatar when remote.camOn is false — not a black rectangle.
+  const [remote, setRemote] = useState<{ name?: string; micOn: boolean; camOn: boolean }>({
+    micOn: true,
+    camOn: true,
+  });
 
   const chanRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -84,6 +95,11 @@ export function useNativeCall(room: string) {
   const send = useCallback((p: Signal) => {
     void chanRef.current?.send({ type: "broadcast", event: "signal", payload: p });
   }, []);
+  const micOnRef = useRef(true);
+  const camOnRef = useRef(true);
+  const sendState = useCallback(() => {
+    send({ kind: "state", from: role, micOn: micOnRef.current, camOn: camOnRef.current });
+  }, [send]);
 
   const newPc = useCallback(() => {
     pcRef.current?.close();
@@ -123,8 +139,15 @@ export function useNativeCall(room: string) {
     if (!p || p.from === role) return;
     try {
       if (p.kind === "hello") {
-        // Doctor announced — nudge them to (re)offer if we're idle-waiting.
+        // Doctor announced — introduce ourselves and nudge them to (re)offer.
+        sendState();
         if (statusRef.current === "waiting") send({ kind: "hello", from: role });
+      } else if (p.kind === "state") {
+        setRemote((prev) => ({
+          name: p.name ?? prev.name,
+          micOn: p.micOn ?? prev.micOn,
+          camOn: p.camOn ?? prev.camOn,
+        }));
       } else if (p.kind === "offer" && p.sdp) {
         const pc = newPc();
         setBoth("connecting");
@@ -147,7 +170,7 @@ export function useNativeCall(room: string) {
     } catch (err) {
       console.warn("[call] signal error", err);
     }
-  }, [newPc, flushIce, send]);
+  }, [newPc, flushIce, send, sendState]);
 
   const start = useCallback(async () => {
     if (startedRef.current) return;
@@ -177,23 +200,27 @@ export function useNativeCall(room: string) {
     });
     chan.on("broadcast", { event: "signal" }, ({ payload }) => onSignal(payload as Signal));
     chan.subscribe((st) => {
-      if (st === "SUBSCRIBED") send({ kind: "hello", from: role });
+      if (st === "SUBSCRIBED") { send({ kind: "hello", from: role }); sendState(); }
     });
     chanRef.current = chan;
-  }, [room, onSignal, send]);
+  }, [room, onSignal, send, sendState]);
 
   const toggleMic = useCallback(() => {
     setMicOn((on) => {
+      micOnRef.current = !on;
       streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !on));
       return !on;
     });
-  }, []);
+    queueMicrotask(sendState);
+  }, [sendState]);
   const toggleCam = useCallback(() => {
     setCamOn((on) => {
+      camOnRef.current = !on;
       streamRef.current?.getVideoTracks().forEach((t) => (t.enabled = !on));
       return !on;
     });
-  }, []);
+    queueMicrotask(sendState);
+  }, [sendState]);
 
   const teardown = useCallback(() => {
     pcRef.current?.close();
@@ -222,5 +249,5 @@ export function useNativeCall(room: string) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { status, micOn, camOn, localStream, remoteStream, start, toggleMic, toggleCam, end };
+  return { status, micOn, camOn, remote, localStream, remoteStream, start, toggleMic, toggleCam, end };
 }

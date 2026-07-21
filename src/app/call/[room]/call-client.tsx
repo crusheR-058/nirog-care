@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Mic,
   MicOff,
+  User,
   Video,
   VideoOff,
   PhoneOff,
@@ -18,6 +19,9 @@ import { useCall, useVideoRef } from "@/lib/webrtc/use-call";
 
 /** Patient side of the consultation — joined via the link the doctor shares. */
 export function CallClient({ room }: { room: string }) {
+  // No displayName: a public join link knows nothing about who is joining, and
+  // announcing a generic label would only override the real name the doctor
+  // already has from the queue.
   const call = useCall(room, "patient");
   const localRef = useVideoRef(call.localStream);
   const remoteRef = useVideoRef(call.remoteStream);
@@ -101,9 +105,22 @@ export function CallClient({ room }: { room: string }) {
           data-remote
           className={cn(
             "absolute inset-0 size-full object-cover",
-            call.remoteStream ? "opacity-100" : "opacity-0"
+            call.remoteStream && call.remote.camOn ? "opacity-100" : "opacity-0"
           )}
         />
+
+        {/* doctor turned their camera off → their initial, not a black frame */}
+        {call.remoteStream && !call.remote.camOn && (
+          <div className="absolute inset-0 grid place-items-center" data-remote-cam-off>
+            <div className="flex flex-col items-center gap-3 text-white/85">
+              <span className="grid size-24 place-items-center rounded-full bg-soft-blue text-3xl font-semibold text-blue">
+                {(call.remote.name ?? "Doctor").trim().replace(/^Dr\.?\s*/i, "").charAt(0).toUpperCase()}
+              </span>
+              <p className="text-sm font-medium">{call.remote.name ?? "Your doctor"}</p>
+              <p className="text-xs text-white/50">Camera is off</p>
+            </div>
+          </div>
+        )}
 
         {!call.remoteStream && (
           <div className="absolute inset-0 grid place-items-center">
@@ -119,17 +136,34 @@ export function CallClient({ room }: { room: string }) {
         )}
 
         {/* self preview */}
-        <video
-          ref={localRef}
-          autoPlay
-          playsInline
-          muted
-          data-local
-          className={cn(
-            "absolute bottom-4 right-4 z-10 h-32 w-24 -scale-x-100 rounded-xl border border-white/20 object-cover shadow-float sm:h-36 sm:w-52",
-            call.localStream && call.camOn ? "opacity-100" : "opacity-30"
+        <div className="absolute bottom-4 right-4 z-10 h-32 w-24 overflow-hidden rounded-xl border border-white/20 shadow-float sm:h-36 sm:w-52">
+          <video
+            ref={localRef}
+            autoPlay
+            playsInline
+            muted
+            data-local
+            className={cn(
+              "size-full -scale-x-100 object-cover",
+              call.localStream && call.camOn ? "opacity-100" : "opacity-0"
+            )}
+          />
+          {!call.camOn && (
+            <div
+              className="absolute inset-0 grid place-items-center bg-white/5"
+              data-local-cam-off
+            >
+              <span className="grid size-12 place-items-center rounded-full bg-white/10 text-white/80">
+                <User className="size-6" />
+              </span>
+            </div>
           )}
-        />
+          {!call.micOn && (
+            <span className="absolute bottom-1.5 left-1.5 grid size-6 place-items-center rounded-full bg-red/90 text-white">
+              <MicOff className="size-3.5" />
+            </span>
+          )}
+        </div>
 
         {call.status === "connected" && (
           <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
@@ -140,6 +174,14 @@ export function CallClient({ room }: { room: string }) {
             <span className="tnum rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
               {clock}
             </span>
+            {!call.remote.micOn && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-amber backdrop-blur"
+                data-remote-muted
+              >
+                <MicOff className="size-3.5" /> Doctor muted
+              </span>
+            )}
           </div>
         )}
       </div>

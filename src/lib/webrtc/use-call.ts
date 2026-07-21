@@ -46,11 +46,26 @@ async function fetchRtcConfig(): Promise<RTCConfiguration> {
 }
 
 interface Signal {
-  kind: "hello" | "offer" | "answer" | "ice" | "bye";
+  kind: "hello" | "offer" | "answer" | "ice" | "bye" | "state";
   from: CallRole;
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+  // "state" payload — presence the media stream cannot carry. Disabling a
+  // video track sends BLACK FRAMES, not a mute event, so the far side cannot
+  // tell "camera off" from "very dark room" unless we say so explicitly.
+  micOn?: boolean;
+  camOn?: boolean;
+  name?: string;
 }
+
+/** What we know about the far peer beyond its media stream. */
+export interface RemotePeerInfo {
+  name?: string;
+  micOn: boolean;
+  camOn: boolean;
+}
+
+const REMOTE_DEFAULT: RemotePeerInfo = { micOn: true, camOn: true };
 
 /**
  * A real 1:1 WebRTC call, signalled over a Supabase Realtime broadcast channel
@@ -63,11 +78,12 @@ interface Signal {
 export function useCall(
   room: string,
   role: CallRole,
-  opts?: { startWithVideo?: boolean }
+  opts?: { startWithVideo?: boolean; displayName?: string }
 ) {
   const [status, setStatus] = useState<CallStatus>("idle");
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(opts?.startWithVideo ?? true);
+  const [remoteInfo, setRemoteInfo] = useState<RemotePeerInfo>(REMOTE_DEFAULT);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
@@ -78,6 +94,10 @@ export function useCall(
   const statusRef = useRef<CallStatus>("idle");
   const startedRef = useRef(false);
   const camOnRef = useRef(camOn);
+  const micOnRef = useRef(true);
+  // Captured once — a caller's display name doesn't change mid-call, and
+  // writing a ref during render violates the hooks contract.
+  const nameRef = useRef(opts?.displayName);
   const pendingIce = useRef<RTCIceCandidateInit[]>([]);
   // Resolved once at start(); newPc() must stay synchronous because it is also
   // called mid-negotiation, when awaiting would race the incoming offer.
@@ -91,6 +111,17 @@ export function useCall(
   const send = useCallback((payload: Signal) => {
     void chanRef.current?.send({ type: "broadcast", event: "signal", payload });
   }, []);
+
+  /** Announce our name + mic/cam state to the far peer. */
+  const sendState = useCallback(() => {
+    send({
+      kind: "state",
+      from: role,
+      micOn: micOnRef.current,
+      camOn: camOnRef.current,
+      name: nameRef.current,
+    });
+  }, [role, send]);
 
   const newPc = useCallback(() => {
     pcRef.current?.close();
@@ -139,6 +170,9 @@ export function useCall(
       if (!payload || payload.from === role) return;
       try {
         if (payload.kind === "hello") {
+          // The far peer (re)joined: introduce ourselves. Their copy of our
+          // state died with their previous page, so always re-announce.
+          sendState();
           if (role === "doctor") {
             // Re-offer unless we're already live with this peer.
             if (statusRef.current !== "connected") await makeOffer();
@@ -146,6 +180,12 @@ export function useCall(
             // Late-joining doctor announced — reply so they offer.
             send({ kind: "hello", from: role });
           }
+        } else if (payload.kind === "state") {
+          setRemoteInfo((prev) => ({
+            name: payload.name ?? prev.name,
+            micOn: payload.micOn ?? prev.micOn,
+            camOn: payload.camOn ?? prev.camOn,
+          }));
         } else if (payload.kind === "offer" && role === "patient" && payload.sdp) {
           const pc = newPc();
           setStatusBoth("connecting");
@@ -166,6 +206,7 @@ export function useCall(
           }
         } else if (payload.kind === "bye") {
           setRemoteStream(null);
+          setRemoteInfo(REMOTE_DEFAULT);
           pcRef.current?.close();
           pcRef.current = null;
           setStatusBoth(role === "doctor" ? "waiting" : "ended");
@@ -174,7 +215,7 @@ export function useCall(
         console.warn("[call] signal error", err);
       }
     },
-    [role, makeOffer, newPc, flushIce, send]
+    [role, makeOffer, newPc, flushIce, send, sendState]
   );
 
   /** Ask for camera + mic and join the signaling room. Needs a user gesture. */
@@ -211,17 +252,25 @@ export function useCall(
       handleSignal(payload as Signal)
     );
     chan.subscribe((st) => {
-      if (st === "SUBSCRIBED") send({ kind: "hello", from: role });
+      if (st === "SUBSCRIBED") {
+        send({ kind: "hello", from: role });
+        sendState();
+      }
     });
     chanRef.current = chan;
-  }, [room, role, handleSignal, send]);
+  }, [room, role, handleSignal, send, sendState]);
 
   const toggleMic = useCallback(() => {
     setMicOn((on) => {
+      micOnRef.current = !on;
       streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !on));
       return !on;
     });
-  }, []);
+    // Refs are already flipped by the updater above (React runs it before
+    // returning), but announce on the next tick to be safe under StrictMode's
+    // double-invoke.
+    queueMicrotask(sendState);
+  }, [sendState]);
 
   const toggleCam = useCallback(() => {
     setCamOn((on) => {
@@ -229,7 +278,8 @@ export function useCall(
       streamRef.current?.getVideoTracks().forEach((t) => (t.enabled = !on));
       return !on;
     });
-  }, []);
+    queueMicrotask(sendState);
+  }, [sendState]);
 
   const teardown = useCallback(() => {
     pcRef.current?.close();
@@ -238,6 +288,7 @@ export function useCall(
     streamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteInfo(REMOTE_DEFAULT);
     if (chanRef.current && supabaseRef.current) {
       void supabaseRef.current.removeChannel(chanRef.current);
     }
@@ -270,6 +321,7 @@ export function useCall(
     status,
     micOn,
     camOn,
+    remote: remoteInfo,
     localStream,
     remoteStream,
     start,
