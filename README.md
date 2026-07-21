@@ -9,6 +9,25 @@ Built from the platform pitch (`output/pdf/Nirog_Care_Platform_Team_Pitch.pdf`):
 identity, consent-driven records, ARIA (AI intake) handover, and a safe path to
 real teleconsultation.
 
+## How Codex and GPT-5.6 were used
+
+Codex powered by GPT-5.6 was used as the primary engineering collaborator throughout Nirog’s development—not merely for isolated code completion.
+
+Codex helped us:
+
+- Translate the rural-care product concept into an end-to-end care loop: ARIA intake → doctor review → consultation → care plan → fulfilment → follow-up.
+- Build and refine the Expo/React Native patient application and the Next.js doctor portal.
+- Design the shared clinical data model, Supabase authentication, consent-scoped access, Row-Level Security policies and immutable audit trail.
+- Implement ARIA’s conversational intake, AWS-backed AI services, speech features, patient records, nearby-care discovery and teleconsultation workflows.
+- Diagnose Android build, authentication, navigation, WebRTC, asset, animation and deployment issues using live terminal, browser and desktop-app inspection.
+- Review and correct privacy and authorization problems discovered during end-to-end testing.
+- Run TypeScript checks, inspect runtime behaviour, test key patient/doctor workflows and prepare the APK, documentation and submission materials.
+- Iterate on interaction design, accessibility, error states and the “Quiet Glass” clinical interface.
+
+Codex was used agentically: it inspected the real codebase, edited implementation files, ran commands, examined failures, verified fixes and continued iterating until the workflows worked together. GPT-5.6 supplied the reasoning needed to connect product requirements, clinical safety, mobile engineering, backend security and deployment into one coherent system.
+
+All final product decisions were reviewed by the team. Nirog is currently a demonstration using simulated data; real clinical deployment would require specialist medical, legal, DPDP and ABDM review.
+
 ## The care loop
 
 ```
