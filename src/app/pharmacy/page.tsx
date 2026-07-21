@@ -94,8 +94,8 @@ export default async function PharmacyLandingPage() {
           <p className="mt-4 max-w-lg text-lg leading-relaxed text-ink-soft">
             A consultation isn&rsquo;t care until the medicine reaches the
             patient. Partner pharmacies are the{" "}
-            <span className="font-semibold text-ink">Fulfil</span> step of the
-            Nirog care loop — receiving signed prescriptions and getting
+            <span className="font-semibold text-ink">Fulfil</span>{" "}
+            step of the Nirog care loop — receiving signed prescriptions and getting
             medicines to people who can&rsquo;t reach a city chemist.
           </p>
 
