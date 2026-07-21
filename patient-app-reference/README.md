@@ -8,6 +8,11 @@ on-demand consult and a doctor "picks up" a live video call.
 > this Next.js project's build (`tsconfig.json` + `.vercelignore`). Copy them
 > into the Expo app and adjust import paths.
 
+> 📄 **For the video call specifically, read
+> [`docs/webrtc-supabase-handover.md`](../docs/webrtc-supabase-handover.md)** —
+> the normative signalling contract (channel, message schema, roles, ICE/TURN)
+> that lets the phone join the same call as the already-deployed web portal.
+
 ## The model (already live on the backend)
 
 ```
