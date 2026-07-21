@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PharmacyProfile } from "@/lib/pharmacy/config";
+import { pharmacyAutoVerify } from "@/lib/pharmacy/verification";
 
 export type PharmacySignUpState = { error?: string };
 export type SaveResult = { ok: true } | { ok: false; error: string };
@@ -118,6 +119,8 @@ export async function savePharmacyOnboarding(
   }
 
   const admin = createAdminClient();
+  const autoVerify = pharmacyAutoVerify();
+
   const { error } = await admin
     .from("Pharmacy")
     .update({
@@ -126,13 +129,19 @@ export async function savePharmacyOnboarding(
       licenseNo: profile.licenseNo,
       phone: profile.phone,
       city: profile.city,
-      district: profile.district ?? null,
+      // District is the routing key for the order pool. The wizard only makes
+      // city mandatory, so fall back to it — a pharmacy with no district would
+      // be "verified" yet serve nowhere, and its pool would stay empty forever.
+      district: profile.district?.trim() || profile.city,
       state: profile.state ?? null,
       country: profile.country,
       services: profile.services,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       profile: profile as any,
       onboardingComplete: true,
+      // Demo mode: approve on submission so the fulfilment flow is walkable.
+      // In production this stays false until a human checks the licence.
+      ...(autoVerify ? { verified: true } : {}),
     })
     .eq("authUserId", user.id);
 
@@ -146,4 +155,51 @@ export async function savePharmacyOnboarding(
   }
 
   return { ok: true };
+}
+
+/**
+ * Demo-mode self-approval.
+ *
+ * Auto-verify is applied when onboarding is submitted, so a pharmacy that
+ * completed onboarding *before* the flag existed would sit on the status page
+ * forever waiting for a reviewer that does not exist. This lets it through.
+ *
+ * Refuses when auto-verify is off, so it can never become a back door around
+ * real licence checks in production.
+ */
+export async function selfApprovePharmacy(): Promise<void> {
+  const fail = (reason: string) =>
+    redirect(`/pharmacy/status?error=${encodeURIComponent(reason)}`);
+
+  if (!pharmacyAutoVerify()) fail("Verification is reviewed manually.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const admin = createAdminClient();
+  const { data: pharmacy } = await admin
+    .from("Pharmacy")
+    .select("id,city,district,onboardingComplete")
+    .eq("authUserId", user.id)
+    .maybeSingle();
+
+  if (!pharmacy) redirect("/portal");
+  if (!pharmacy.onboardingComplete) redirect("/pharmacy/onboarding");
+
+  const { error } = await admin
+    .from("Pharmacy")
+    .update({
+      verified: true,
+      // Without a district the pool has no routing key and stays empty.
+      district: pharmacy.district?.trim() || pharmacy.city,
+    })
+    .eq("id", pharmacy.id);
+
+  if (error) fail("Could not activate. Please try again.");
+
+  revalidatePath("/pharmacy/status");
+  redirect("/pharmacy/dashboard");
 }

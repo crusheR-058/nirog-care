@@ -48,10 +48,13 @@ export function PharmacyWizard({
   pharmacyId,
   email,
   defaults,
+  autoVerify = false,
 }: {
   pharmacyId: string;
   email: string;
   defaults: Partial<PharmacyProfile>;
+  /** Demo mode: submitting approves immediately, so don't promise a review. */
+  autoVerify?: boolean;
 }) {
   const [pending, start] = useTransition();
   const [step, setStep] = useState(0);
@@ -140,8 +143,12 @@ export function PharmacyWizard({
         bankRoutingLabel: cfg.bankRoutingLabel,
       });
       if (res.ok) {
-        // Hard navigation so the status page re-reads the completed profile.
-        window.location.assign("/pharmacy/status");
+        // Hard navigation so the destination re-reads the completed profile.
+        // Auto-verified partners go straight to the dispensing console; anyone
+        // awaiting a human review lands on the status page.
+        window.location.assign(
+          autoVerify ? "/pharmacy/dashboard" : "/pharmacy/status"
+        );
       } else {
         setError(res.error);
       }
@@ -359,7 +366,14 @@ export function PharmacyWizard({
         )}
 
         {step === 5 && (
-          <Section title="Review & submit" desc="Confirm your details before sending for verification.">
+          <Section
+            title="Review & submit"
+            desc={
+              autoVerify
+                ? "Confirm your details — your console opens as soon as you submit."
+                : "Confirm your details before sending for verification."
+            }
+          >
             <dl className="divide-y divide-hairline rounded-2xl border border-hairline bg-canvas">
               <Row k="Pharmacy" v={`${form.name} · ${form.pharmacyType}`} />
               <Row k="Owner" v={form.ownerName} />
@@ -374,8 +388,10 @@ export function PharmacyWizard({
             </dl>
             <p className="text-xs text-ink-faint">
               By submitting, you confirm these details are accurate and that your
-              licence is current. Prescriptions are routed to you only after
-              Nirog verifies your registration.
+              licence is current.{" "}
+              {autoVerify
+                ? "Nirog is running as a demo, so your pharmacy is approved automatically and prescriptions for your area start routing to you straight away."
+                : "Prescriptions are routed to you only after Nirog verifies your registration."}
             </p>
           </Section>
         )}
@@ -397,7 +413,7 @@ export function PharmacyWizard({
           ) : (
             <Button onClick={submit} disabled={pending}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-              Submit for verification
+              {autoVerify ? "Submit & open console" : "Submit for verification"}
             </Button>
           )}
         </div>

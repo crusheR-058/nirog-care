@@ -14,11 +14,19 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logout } from "@/app/(auth)/actions";
 import { Logo } from "@/components/brand/logo";
+import { Button } from "@/components/ui/button";
+import { selfApprovePharmacy } from "@/app/pharmacy/actions";
+import { pharmacyAutoVerify } from "@/lib/pharmacy/verification";
 
 export const metadata: Metadata = { title: "Pharmacy status" };
 export const dynamic = "force-dynamic";
 
-export default async function PharmacyStatusPage() {
+export default async function PharmacyStatusPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error: activationError } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -34,6 +42,8 @@ export default async function PharmacyStatusPage() {
 
   if (!pharmacy) redirect("/portal");
   if (!pharmacy.onboardingComplete) redirect("/pharmacy/onboarding");
+
+  const autoVerify = pharmacyAutoVerify();
 
   const verified = pharmacy.verified as boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,8 +83,27 @@ export default async function PharmacyStatusPage() {
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-ink-soft">
             {verified
               ? "Your pharmacy is approved. Prescriptions from Nirog doctors in your area will be routed to you for fulfilment."
-              : "Thanks — your details are with our verification team. We check your licence and premises against the issuing authority, usually within 2–3 working days. We'll email you the moment you're approved."}
+              : autoVerify
+                ? "Nirog is running as a demo, so no manual licence review takes place. Activate your console to start receiving prescriptions for your area."
+                : "Thanks — your details are with our verification team. We check your licence and premises against the issuing authority, usually within 2–3 working days. We'll email you the moment you're approved."}
           </p>
+
+          {verified ? (
+            <div className="mt-5">
+              <Button asChild>
+                <Link href="/pharmacy/dashboard">Open dispensing console</Link>
+              </Button>
+            </div>
+          ) : autoVerify ? (
+            <form action={selfApprovePharmacy} className="mt-5">
+              <Button type="submit">Activate console</Button>
+              {activationError && (
+                <p role="alert" className="mt-2 text-xs font-medium text-red">
+                  {activationError}
+                </p>
+              )}
+            </form>
+          ) : null}
           {!verified && (
             <div className="mt-5 flex flex-wrap gap-2">
               {["Licence submitted", `${docCount} documents`, "Awaiting review"].map((t) => (

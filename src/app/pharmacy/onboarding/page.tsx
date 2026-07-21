@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logout } from "@/app/(auth)/actions";
 import { Logo } from "@/components/brand/logo";
 import { PharmacyWizard } from "@/components/pharmacy/wizard";
+import { pharmacyAutoVerify } from "@/lib/pharmacy/verification";
 
 export const metadata: Metadata = { title: "Verify your pharmacy" };
 export const dynamic = "force-dynamic";
@@ -21,13 +22,17 @@ export default async function PharmacyOnboardingPage() {
   const admin = createAdminClient();
   const { data: pharmacy } = await admin
     .from("Pharmacy")
-    .select("id,name,ownerName,email,licenseNo,country,onboardingComplete")
+    .select("id,name,ownerName,email,licenseNo,country,onboardingComplete,verified")
     .eq("authUserId", user.id)
     .maybeSingle();
 
   // Signed in but not a pharmacy account → send them to their own flow.
   if (!pharmacy) redirect("/portal");
-  if (pharmacy.onboardingComplete) redirect("/pharmacy/status");
+  if (pharmacy.onboardingComplete) {
+    redirect(pharmacy.verified ? "/pharmacy/dashboard" : "/pharmacy/status");
+  }
+
+  const autoVerify = pharmacyAutoVerify();
 
   return (
     <div className="min-h-dvh bg-canvas">
@@ -48,9 +53,9 @@ export default async function PharmacyOnboardingPage() {
           Verify your pharmacy
         </h1>
         <p className="mx-auto mt-2 max-w-xl text-ink-soft">
-          Nirog verifies every partner pharmacy before routing a prescription.
-          Tell us about your premises and upload your licence — it takes a few
-          minutes.
+          {autoVerify
+            ? "Tell us about your premises and upload your licence — it takes a few minutes. Nirog is running as a demo, so your console opens as soon as you submit."
+            : "Nirog verifies every partner pharmacy before routing a prescription. Tell us about your premises and upload your licence — it takes a few minutes."}
         </p>
       </div>
 
@@ -63,6 +68,7 @@ export default async function PharmacyOnboardingPage() {
           licenseNo: pharmacy.licenseNo,
           country: pharmacy.country ?? undefined,
         }}
+        autoVerify={autoVerify}
       />
     </div>
   );

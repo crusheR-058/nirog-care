@@ -89,19 +89,44 @@ outrank combinations.
 
 ---
 
-## Still manual
+## Verification (demo mode)
 
-**Pharmacy approval.** `Pharmacy.verified` is what unlocks both the console and
-every prescription-related RLS policy, and nothing in the product sets it — it
-is a `UPDATE` in the Supabase dashboard:
+`Pharmacy.verified` gates both the console and every prescription-related RLS
+policy. There is no reviewer yet, so an unverified pharmacy would complete
+onboarding and then wait forever for an approval nothing could grant.
 
-```sql
-update "Pharmacy"
-   set verified = true, district = 'Barabanki, UP', state = 'UP'
- where email = '<pharmacy email>';
+**Auto-verify is therefore ON**: submitting the onboarding wizard approves the
+pharmacy immediately and opens its console. The wizard, the submit button and
+the status page all say so — the product should never claim a licence review
+that isn't happening.
+
+Turn it off with a single variable before this platform touches real patients:
+
+```
+NIROG_PHARMACY_AUTO_VERIFY=false
 ```
 
-`district` matters as much as `verified`: without it the pharmacy is verified but
-serves nowhere, so its pool is always empty.
+With it off, `verified` stays false until a human sets it, and the status page
+reverts to "verification in review". See
+[`src/lib/pharmacy/verification.ts`](../src/lib/pharmacy/verification.ts).
 
-An admin review queue is the obvious next piece of work.
+Required licence and pharmacist-certificate uploads are still enforced, and the
+files are stored — they are exactly what a reviewer will inspect once manual
+verification is switched back on.
+
+### Routing keys
+
+`district` is what the order pool matches on, and the wizard only makes *city*
+mandatory — so a pharmacy could be verified yet serve nowhere. Onboarding
+back-fills `district` from `city` when it is blank.
+
+Matching is also deliberately loose: patient districts are seeded fully
+qualified ("Barabanki, UP") while pharmacies type what they call their area
+("Barabanki"). `pharmacy_serves()` matches when either side contains the other,
+falling back to state, so a correctly-registered pharmacy next door to a patient
+cannot silently miss the order.
+
+### Still manual
+
+An admin review queue — so a human can approve, reject and re-verify pharmacies
+without a SQL console — is the obvious next piece of work.

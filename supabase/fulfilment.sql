@@ -341,3 +341,32 @@ drop trigger if exists pharmacy_order_status_sync on public."PharmacyOrder";
 create trigger pharmacy_order_status_sync
   after update on public."PharmacyOrder"
   for each row execute function public.sync_prescription_status();
+
+-- ── Routing match, loosened ──────────────────────────────────────────────────
+-- Exact equality was too brittle in practice. Patient districts are seeded
+-- fully qualified ("Barabanki, UP") while a pharmacy types whatever it calls
+-- its area ("Barabanki"), so a correctly-registered pharmacy could sit next
+-- door to a patient and never see the order.
+--
+-- Match when either side contains the other, and accept the pharmacy's city as
+-- a district fallback (many partners fill in city but leave district blank).
+-- State remains the last resort so no order is ever stranded.
+create or replace function public.pharmacy_serves(o_district text, o_state text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public."Pharmacy" p
+    where p."authUserId" = auth.uid()
+      and p.verified
+      and (
+        -- district (or city) overlaps the order's district, either direction
+        (o_district is not null and coalesce(p.district, p.city) is not null
+          and (
+            position(lower(coalesce(p.district, p.city)) in lower(o_district)) > 0
+            or position(lower(o_district) in lower(coalesce(p.district, p.city))) > 0
+          ))
+        -- fallback: same state
+        or (o_state is not null and p.state is not null
+          and lower(p.state) = lower(o_state))
+      )
+  )
+$$;
