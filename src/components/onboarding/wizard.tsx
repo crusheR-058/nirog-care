@@ -254,7 +254,7 @@ export function OnboardingWizard({
             <Field label="Languages spoken" required hint="Select every language you can consult in.">
               <ChipMulti options={LANGUAGES} value={form.languages} onToggle={(v) => toggle("languages", v)} />
             </Field>
-            <UploadField doctorId={doctorId} storageKey="profile-photo" label="Profile photo" hint="A recent professional headshot." value={form.profilePhotoPath} onChange={(p) => set("profilePhotoPath", p)} />
+            <UploadField ownerId={doctorId} storageKey="profile-photo" label="Profile photo" hint="A recent professional headshot." value={form.profilePhotoPath} onChange={(p) => set("profilePhotoPath", p)} />
           </Section>
         )}
 
@@ -304,7 +304,7 @@ export function OnboardingWizard({
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {CERTIFICATES.map((c) => (
-                <UploadField key={c.key} doctorId={doctorId} storageKey={`cert-${c.key}`} label={c.label} required={c.required} value={form.certificates[c.key]} onChange={(p) => setForm((f) => ({ ...f, certificates: { ...f.certificates, [c.key]: p } }))} />
+                <UploadField key={c.key} ownerId={doctorId} storageKey={`cert-${c.key}`} label={c.label} required={c.required} value={form.certificates[c.key]} onChange={(p) => setForm((f) => ({ ...f, certificates: { ...f.certificates, [c.key]: p } }))} />
               ))}
             </div>
             <Field label="Awards & recognitions">
@@ -322,12 +322,12 @@ export function OnboardingWizard({
             <Field label={`${cfg.councilLabel} number`} required>
               <Input value={form.registrationNo ?? ""} onChange={(e) => set("registrationNo", e.target.value)} placeholder={cfg.councilPlaceholder} />
             </Field>
-            <UploadField doctorId={doctorId} storageKey="registration-cert" label={`${cfg.councilLabel} certificate`} required value={form.registrationDocPath} onChange={(p) => set("registrationDocPath", p)} />
+            <UploadField ownerId={doctorId} storageKey="registration-cert" label={`${cfg.councilLabel} certificate`} required value={form.registrationDocPath} onChange={(p) => set("registrationDocPath", p)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label={`${cfg.taxIdLabel} number`}>
                 <Input value={form.taxId ?? ""} onChange={(e) => set("taxId", e.target.value)} />
               </Field>
-              <UploadField doctorId={doctorId} storageKey="tax-id" label={`${cfg.taxIdLabel} document`} value={form.taxIdDocPath} onChange={(p) => set("taxIdDocPath", p)} />
+              <UploadField ownerId={doctorId} storageKey="tax-id" label={`${cfg.taxIdLabel} document`} value={form.taxIdDocPath} onChange={(p) => set("taxIdDocPath", p)} />
             </div>
             <Field label="Government ID type">
               <select value={form.idProofType ?? ""} onChange={(e) => set("idProofType", e.target.value)} className="h-11 w-full rounded-xl border border-input bg-panel px-3 text-sm text-ink">
@@ -336,8 +336,8 @@ export function OnboardingWizard({
               </select>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <UploadField doctorId={doctorId} storageKey="id-front" label="ID — front side" value={form.idProofFrontPath} onChange={(p) => set("idProofFrontPath", p)} />
-              <UploadField doctorId={doctorId} storageKey="id-back" label="ID — back side" value={form.idProofBackPath} onChange={(p) => set("idProofBackPath", p)} />
+              <UploadField ownerId={doctorId} storageKey="id-front" label="ID — front side" value={form.idProofFrontPath} onChange={(p) => set("idProofFrontPath", p)} />
+              <UploadField ownerId={doctorId} storageKey="id-back" label="ID — back side" value={form.idProofBackPath} onChange={(p) => set("idProofBackPath", p)} />
             </div>
           </Section>
         )}
@@ -409,7 +409,7 @@ export function OnboardingWizard({
                 <Input value={form.bankBranch ?? ""} onChange={(e) => set("bankBranch", e.target.value)} />
               </Field>
             </div>
-            <UploadField doctorId={doctorId} storageKey="cancelled-cheque" label={cfg.code === "IN" ? "Cancelled cheque" : "Void cheque / bank statement"} value={form.cancelledChequePath} onChange={(p) => set("cancelledChequePath", p)} />
+            <UploadField ownerId={doctorId} storageKey="cancelled-cheque" label={cfg.code === "IN" ? "Cancelled cheque" : "Void cheque / bank statement"} value={form.cancelledChequePath} onChange={(p) => set("cancelledChequePath", p)} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Secretary name">
                 <Input value={form.secretaryName ?? ""} onChange={(e) => set("secretaryName", e.target.value)} />

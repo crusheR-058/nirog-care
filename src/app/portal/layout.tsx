@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDataSource } from "@/lib/data/source";
+import { pharmacyRedirectFor } from "@/lib/pharmacy/route";
 import { Sidebar } from "@/components/portal/sidebar";
 import { MobileNav } from "@/components/portal/mobile-nav";
 import { Topbar } from "@/components/portal/topbar";
@@ -17,6 +18,11 @@ export default async function PortalLayout({
   if (aal && aal.nextLevel === "aal2" && aal.currentLevel === "aal1") {
     redirect("/verify");
   }
+
+  // A pharmacy partner shares the same auth pool but has no clinician profile —
+  // send them to their own flow instead of failing on getDoctor().
+  const pharmacyRoute = await pharmacyRedirectFor();
+  if (pharmacyRoute) redirect(pharmacyRoute);
 
   const ds = await getDataSource();
   const doctor = await ds.getDoctor();

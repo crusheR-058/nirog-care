@@ -103,6 +103,33 @@ model Doctor {
   audits         AuditEvent[]
 }
 
+/// A partner pharmacy that fulfils prescriptions (the "Fulfil" step of the
+/// care loop). Mirrors Doctor: signs up against the same Supabase Auth,
+/// completes a country-aware verification wizard, then waits for approval.
+model Pharmacy {
+  id         String   @id @default(cuid())
+  // Links this pharmacy to a Supabase Auth user (auth.users.id).
+  authUserId String?  @unique @db.Uuid
+  name       String
+  email      String   @unique
+  // Drug licence / board registration — the regulated identifier.
+  licenseNo  String   @unique
+  ownerName  String
+  phone      String?
+  city       String?
+  district   String?
+  state      String?
+  country    String?
+  services   String[]
+  avatarTone String?
+  // Verification lifecycle, same shape as Doctor.
+  onboardingComplete Boolean  @default(false)
+  verified           Boolean  @default(false)
+  /// Full onboarding payload (country-aware fields + document paths).
+  profile            Json?
+  createdAt          DateTime @default(now())
+}
+
 /// A patient profile. An account is NOT a patient; relationships are explicit.
 model Patient {
   id                    String           @id @default(cuid())

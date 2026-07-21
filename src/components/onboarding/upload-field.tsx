@@ -5,11 +5,11 @@ import { UploadCloud, Check, Loader2, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
-const BUCKET = "doctor-documents";
-
-/** Uploads a document to doctor-documents/<doctorId>/<key>… and reports the path. */
+/** Uploads to <bucket>/<ownerId>/<key>-… and reports back the stored path.
+ *  Shared by the doctor and pharmacy verification wizards. */
 export function UploadField({
-  doctorId,
+  ownerId,
+  bucket = "doctor-documents",
   storageKey,
   label,
   hint,
@@ -17,7 +17,8 @@ export function UploadField({
   value,
   onChange,
 }: {
-  doctorId: string;
+  ownerId: string;
+  bucket?: string;
   storageKey: string;
   label: string;
   hint?: string;
@@ -38,9 +39,9 @@ export function UploadField({
     setUploading(true);
     setError(null);
     const safe = file.name.replace(/[^\w.\-]+/g, "_");
-    const path = `${doctorId}/${storageKey}-${Date.now()}-${safe}`;
+    const path = `${ownerId}/${storageKey}-${Date.now()}-${safe}`;
     const { error } = await supabase.storage
-      .from(BUCKET)
+      .from(bucket)
       .upload(path, file, { upsert: true });
     if (error) {
       setError(error.message);

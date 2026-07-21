@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
-import { ArrowRight, Sparkles, ShieldCheck, Globe2, Radio } from "lucide-react";
+import { ArrowRight, Pill, Sparkles, ShieldCheck, Globe2, Radio } from "lucide-react";
 import { HeroVisual, HeroVisualMobile } from "@/components/landing/hero-visual";
 import { Magnetic, EASE } from "@/components/landing/shared";
 
@@ -91,6 +91,17 @@ export function Hero() {
               >
                 Start Consultation
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </Magnetic>
+            <Magnetic className="w-full sm:w-auto">
+              <Link
+                href="/pharmacy"
+                className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-full bg-white px-7 text-[15px] font-semibold text-ink shadow-quiet transition-all hover:shadow-lift active:scale-[0.97] sm:w-auto"
+              >
+                <span className="grid size-6 place-items-center rounded-full bg-soft-green text-green">
+                  <Pill className="size-3.5" />
+                </span>
+                Partner as a pharmacy
               </Link>
             </Magnetic>
           </motion.div>
