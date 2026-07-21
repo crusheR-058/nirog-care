@@ -91,7 +91,10 @@ const result = await page.evaluate(
     pc.createDataChannel("probe");
     const found = [];
     const errors = [];
-    await new Promise((resolve) => {
+    // Register the listeners and hold the promise FIRST — gathering only
+    // starts once setLocalDescription runs, so awaiting before that call
+    // would watch a peer connection that is doing nothing.
+    const gathered = new Promise((resolve) => {
       const timer = setTimeout(resolve, 12000);
       pc.onicecandidate = (e) => {
         if (!e.candidate) { clearTimeout(timer); resolve(); return; }
@@ -102,6 +105,7 @@ const result = await page.evaluate(
         errors.push(`${e.errorCode} ${e.errorText ?? ""} (${e.url ?? ""})`.trim());
     });
     await pc.setLocalDescription(await pc.createOffer());
+    await gathered;
     pc.close();
     return { found, errors };
   },
